@@ -1,0 +1,126 @@
+.scanner-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    animation: fadeIn 0.2s ease-in;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.scanner-modal {
+    background: white;
+    border-radius: 12px;
+    max-width: 500px;
+    width: 90%;
+    max-height: 90vh;
+    overflow: hidden;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(50px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.scanner-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    background: #2874f0;
+    color: white;
+}
+
+.scanner-header h3 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 500;
+}
+
+.close-btn {
+    background: transparent;
+    border: none;
+    color: white;
+    font-size: 28px;
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s;
+}
+
+.close-btn:hover {
+    transform: scale(1.1);
+}
+
+.scanner-container {
+    padding: 20px;
+    background: #f1f3f6;
+}
+
+#qr-reader {
+    border: none !important;
+}
+
+#qr-reader__dashboard_section_swaplink {
+    color: #2874f0 !important;
+}
+
+#qr-reader__scan_region video {
+    border-radius: 8px;
+}
+
+.scanner-footer {
+    padding: 20px;
+    text-align: center;
+    background: #f1f3f6;
+    border-top: 1px solid #e0e0e0;
+}
+
+.scanner-footer p {
+    margin: 0 0 15px 0;
+    color: #878787;
+    font-size: 14px;
+}
+
+.cancel-btn {
+    background: white;
+    color: #2874f0;
+    border: 1px solid #2874f0;
+    padding: 10px 30px;
+    border-radius: 2px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.cancel-btn:hover {
+    background: #2874f0;
+    color: white;
+    box-shadow: 0 2px 8px rgba(40, 116, 240, 0.3);
+}

@@ -1,0 +1,73 @@
+from django.db import models
+from django.utils import timezone
+
+
+class Bin(models.Model):
+    """Storage container for packages"""
+    STATUS_CHOICES = [
+        ('available', 'Available'),
+        ('occupied', 'Occupied'),
+        ('maintenance', 'Maintenance'),
+    ]
+    
+    bin_id = models.CharField(max_length=100, unique=True, primary_key=True)
+    location = models.CharField(max_length=255, blank=True, null=True)
+    capacity = models.IntegerField(default=1)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='available')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['bin_id']
+    
+    def __str__(self):
+        return f"{self.bin_id} - {self.status}"
+
+
+class Shipment(models.Model):
+    """Package/shipment information"""
+    STATUS_CHOICES = [
+        ('unregistered', 'Unregistered'),
+        ('registered', 'Registered'),
+        ('picked-up', 'Picked Up'),
+        ('dispatched', 'Dispatched'),
+        ('delivered', 'Delivered'),
+    ]
+    
+    tracking_id = models.CharField(max_length=100, unique=True, primary_key=True)
+    bin = models.ForeignKey(Bin, on_delete=models.SET_NULL, null=True, related_name='shipments')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='unregistered')
+    time_in = models.DateTimeField(default=timezone.now)
+    time_out = models.DateTimeField(null=True, blank=True)
+    time_registered = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-time_in']
+    
+    def __str__(self):
+        return f"{self.tracking_id} - {self.status}"
+
+
+class AuditLog(models.Model):
+    """Audit log for tracking all actions"""
+    ACTION_CHOICES = [
+        ('assigned', 'Assigned'),
+        ('updated', 'Updated'),
+        ('dissociated', 'Dissociated'),
+        ('dispatched', 'Dispatched'),
+        ('delivered', 'Delivered'),
+    ]
+    
+    action = models.CharField(max_length=50, choices=ACTION_CHOICES)
+    shipment = models.ForeignKey(Shipment, on_delete=models.CASCADE, related_name='audit_logs')
+    user = models.CharField(max_length=100, default='system')
+    timestamp = models.DateTimeField(auto_now_add=True)
+    details = models.TextField(blank=True, null=True)
+    
+    class Meta:
+        ordering = ['-timestamp']
+    
+    def __str__(self):
+        return f"{self.action} - {self.shipment.tracking_id} at {self.timestamp}"

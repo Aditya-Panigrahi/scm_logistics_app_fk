@@ -1,0 +1,474 @@
+.outbound-container {
+    min-height: 100vh;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    font-family: Roboto, Arial, sans-serif;
+}
+
+/* Header */
+.header {
+    background: #2874f0;
+    padding: 12px 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.header-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+}
+
+.logo-section {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.logo {
+    color: white;
+    font-size: 28px;
+    font-weight: 700;
+    font-style: italic;
+    letter-spacing: -0.5px;
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+}
+
+.logo-tagline {
+    color: #ffe11b;
+    font-size: 11px;
+    font-style: italic;
+    font-weight: 600;
+}
+
+/* Main Content */
+.outbound-content {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 40px 20px;
+}
+
+/* Back Button */
+.back-button {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    padding: 10px 20px;
+    border-radius: 2px;
+    font-size: 14px;
+    cursor: pointer;
+    margin-bottom: 20px;
+    transition: all 0.3s ease;
+}
+
+.back-button:hover {
+    background: rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.5);
+}
+
+/* Main Card */
+.outbound-card {
+    background: white;
+    border-radius: 2px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    overflow: hidden;
+}
+
+.card-header {
+    background: linear-gradient(135deg, #fb641b 0%, #e05515 100%);
+    color: white;
+    padding: 30px;
+    text-align: center;
+}
+
+.card-header h2 {
+    font-size: 32px;
+    margin: 0 0 10px 0;
+    font-weight: 600;
+}
+
+.card-header p {
+    font-size: 16px;
+    margin: 0;
+    opacity: 0.95;
+}
+
+/* Tabs */
+.tabs-container {
+    display: flex;
+    background: #f5f5f5;
+    border-bottom: 2px solid #e0e0e0;
+}
+
+.tab-button {
+    flex: 1;
+    padding: 18px 20px;
+    background: transparent;
+    border: none;
+    font-size: 15px;
+    font-weight: 500;
+    color: #666;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border-bottom: 3px solid transparent;
+}
+
+.tab-button:hover {
+    background: #eeeeee;
+    color: #333;
+}
+
+.tab-button.active {
+    background: white;
+    color: #fb641b;
+    border-bottom-color: #fb641b;
+}
+
+.card-body {
+    padding: 40px;
+}
+
+/* Tab Content */
+.tab-content {
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.tab-content h3 {
+    font-size: 24px;
+    color: #333;
+    margin: 0 0 10px 0;
+}
+
+.instruction {
+    color: #666;
+    font-size: 14px;
+    margin-bottom: 25px;
+}
+
+/* Input Group */
+.input-group {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.input-field {
+    flex: 1;
+    padding: 14px 18px;
+    border: 2px solid #e0e0e0;
+    border-radius: 2px;
+    font-size: 16px;
+    transition: all 0.3s ease;
+}
+
+.input-field:focus {
+    outline: none;
+    border-color: #2874f0;
+    box-shadow: 0 0 0 3px rgba(40, 116, 240, 0.1);
+}
+
+.input-field:disabled {
+    background: #f5f5f5;
+    cursor: not-allowed;
+}
+
+.scan-button {
+    padding: 14px 24px;
+    background: #2874f0;
+    color: white;
+    border: none;
+    border-radius: 2px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+}
+
+.scan-button:hover:not(:disabled) {
+    background: #1e5bc6;
+    transform: translateY(-1px);
+}
+
+.scan-button:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+}
+
+/* Action Button */
+.action-button {
+    width: 100%;
+    padding: 16px;
+    background: #2874f0;
+    color: white;
+    border: none;
+    border-radius: 2px;
+    font-size: 18px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-bottom: 20px;
+}
+
+.action-button:hover:not(:disabled) {
+    background: #1e5bc6;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(40, 116, 240, 0.3);
+}
+
+.action-button:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.action-button.pickup {
+    background: #fb641b;
+}
+
+.action-button.pickup:hover:not(:disabled) {
+    background: #e05515;
+    box-shadow: 0 4px 12px rgba(251, 100, 27, 0.3);
+}
+
+/* Error and Result Boxes */
+.error-box {
+    background: #ffebee;
+    color: #c62828;
+    padding: 15px 20px;
+    border-radius: 2px;
+    border-left: 4px solid #c62828;
+    font-size: 14px;
+    margin-bottom: 20px;
+}
+
+.result-box {
+    background: #f5f5f5;
+    border: 2px solid #e0e0e0;
+    border-radius: 2px;
+    padding: 25px;
+    animation: slideUp 0.4s ease-out;
+}
+
+.result-box.success {
+    background: #e8f5e9;
+    border-color: #4caf50;
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.result-box h4 {
+    font-size: 20px;
+    color: #333;
+    margin: 0 0 20px 0;
+}
+
+.success-message {
+    background: white;
+    padding: 15px;
+    border-radius: 2px;
+    color: #2e7d32;
+    font-weight: 500;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.result-details {
+    background: white;
+    padding: 20px;
+    border-radius: 2px;
+    margin-bottom: 20px;
+}
+
+.detail-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.detail-row:last-child {
+    border-bottom: none;
+}
+
+.detail-row.highlight {
+    background: #fff3e0;
+    padding: 15px;
+    margin: 0 -20px 10px -20px;
+    border-bottom: 2px solid #fb641b;
+}
+
+.label {
+    font-weight: 500;
+    color: #666;
+    font-size: 14px;
+}
+
+.value {
+    font-weight: 600;
+    color: #333;
+    font-size: 15px;
+}
+
+.bin-highlight {
+    font-size: 20px;
+    color: #fb641b;
+    font-family: 'Courier New', monospace;
+}
+
+.status-badge {
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.status-badge.unregistered {
+    background: #fff3e0;
+    color: #f57c00;
+}
+
+.status-badge.registered {
+    background: #e3f2fd;
+    color: #1976d2;
+}
+
+.status-badge.picked-up {
+    background: #f3e5f5;
+    color: #7b1fa2;
+}
+
+.status-badge.available {
+    background: #e8f5e9;
+    color: #4caf50;
+}
+
+.status-badge.occupied {
+    background: #ffebee;
+    color: #c62828;
+}
+
+/* Packages List */
+.packages-list {
+    margin-top: 20px;
+}
+
+.packages-list h5 {
+    font-size: 16px;
+    color: #333;
+    margin: 0 0 15px 0;
+}
+
+.package-item {
+    background: white;
+    padding: 15px;
+    border-radius: 2px;
+    margin-bottom: 10px;
+    border-left: 3px solid #2874f0;
+}
+
+.package-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.tracking-id {
+    font-family: 'Courier New', monospace;
+    font-weight: 600;
+    color: #333;
+    font-size: 14px;
+}
+
+.empty-message {
+    text-align: center;
+    padding: 30px;
+    color: #999;
+    font-size: 16px;
+}
+
+/* Reset Button */
+.reset-button {
+    width: 100%;
+    padding: 14px;
+    background: #2874f0;
+    color: white;
+    border: none;
+    border-radius: 2px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-top: 20px;
+}
+
+.reset-button:hover {
+    background: #1e5bc6;
+    transform: translateY(-1px);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .outbound-content {
+        padding: 20px 15px;
+    }
+
+    .card-body {
+        padding: 25px 20px;
+    }
+
+    .card-header h2 {
+        font-size: 24px;
+    }
+
+    .tabs-container {
+        flex-direction: column;
+    }
+
+    .tab-button {
+        border-bottom: 1px solid #e0e0e0;
+        border-right: none;
+    }
+
+    .tab-button.active {
+        border-bottom-color: transparent;
+        border-left: 4px solid #fb641b;
+    }
+
+    .input-group {
+        flex-direction: column;
+    }
+
+    .scan-button {
+        width: 100%;
+    }
+
+    .detail-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+}
