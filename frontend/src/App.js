@@ -3,7 +3,8 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Home from './components/Home';
 import InboundProcess from './components/InboundProcess';
 import OutboundProcess from './components/OutboundProcess';
-import StatusReconciliation from './components/StatusReconciliation';
+import ManifestCreation from './components/ManifestCreation';
+import InventoryDashboard from './components/InventoryDashboard';
 import './App.css';
 
 function App() {
@@ -14,7 +15,8 @@ function App() {
           <Route path="/" element={<Home />} />
           <Route path="/inbound" element={<InboundProcess />} />
           <Route path="/outbound" element={<OutboundProcess />} />
-          <Route path="/status-reconciliation" element={<StatusReconciliation />} />
+          <Route path="/manifest-creation" element={<ManifestCreation />} />
+          <Route path="/inventory-dashboard" element={<InventoryDashboard />} />
         </Routes>
       </div>
     </Router>

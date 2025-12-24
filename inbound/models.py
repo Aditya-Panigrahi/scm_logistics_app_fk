@@ -27,6 +27,10 @@ class Bin(models.Model):
 class Shipment(models.Model):
     """Package/shipment information"""
     STATUS_CHOICES = [
+        ('manifested', 'Manifested'),
+        ('putaway', 'Putaway'),
+        ('picklist-created', 'Picklist Created'),
+        ('picked', 'Picked'),
         ('unregistered', 'Unregistered'),
         ('registered', 'Registered'),
         ('picked-up', 'Picked Up'),
@@ -35,11 +39,11 @@ class Shipment(models.Model):
     ]
     
     tracking_id = models.CharField(max_length=100, unique=True, primary_key=True)
-    bin = models.ForeignKey(Bin, on_delete=models.SET_NULL, null=True, related_name='shipments')
+    bin = models.ForeignKey(Bin, on_delete=models.SET_NULL, null=True, blank=True, related_name='shipments')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='unregistered')
+    manifested = models.BooleanField(default=False)
     time_in = models.DateTimeField(default=timezone.now)
     time_out = models.DateTimeField(null=True, blank=True)
-    time_registered = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     

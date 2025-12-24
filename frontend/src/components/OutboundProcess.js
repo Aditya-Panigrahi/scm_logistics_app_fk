@@ -6,484 +6,762 @@ import api from '../services/api';
 
 const OutboundProcess = () => {
     const navigate = useNavigate();
-    const [activeTab, setActiveTab] = useState('search-package'); // 'search-package', 'search-bin', 'dissociate'
     
-    // Search Package State
-    const [searchTrackingId, setSearchTrackingId] = useState('');
-    const [searchResult, setSearchResult] = useState(null);
-    const [searchError, setSearchError] = useState(null);
-    const [searchLoading, setSearchLoading] = useState(false);
-    const [showSearchScanner, setShowSearchScanner] = useState(false);
+    // Tab state
+    const [activeTab, setActiveTab] = useState('bin'); // 'bin' or 'file'
     
-    // Search Bin State
-    const [searchBinId, setSearchBinId] = useState('');
-    const [binResult, setBinResult] = useState(null);
-    const [binError, setBinError] = useState(null);
-    const [binLoading, setBinLoading] = useState(false);
+    // Main state
+    const [binId, setBinId] = useState('');
+    const [packages, setPackages] = useState([]);
+    const [binInfo, setBinInfo] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
+    const [message, setMessage] = useState(null);
+    
+    // File-based pickup state
+    const [uploadedFile, setUploadedFile] = useState(null);
+    const [filePackages, setFilePackages] = useState([]);
+    const [fileLoading, setFileLoading] = useState(false);
+    const [fileError, setFileError] = useState(null);
+    const [fileMessage, setFileMessage] = useState(null);
+    
+    // Modal states
+    const [showPickupModal, setShowPickupModal] = useState(false);
+    const [showDispatchModal, setShowDispatchModal] = useState(false);
     const [showBinScanner, setShowBinScanner] = useState(false);
+    const [showFileDispatchModal, setShowFileDispatchModal] = useState(false);
+    const [currentFilePackage, setCurrentFilePackage] = useState(null);
     
-    // Dissociate State
-    const [dissociateTrackingId, setDissociateTrackingId] = useState('');
-    const [dissociateBinId, setDissociateBinId] = useState('');
-    const [dissociateResult, setDissociateResult] = useState(null);
-    const [dissociateError, setDissociateError] = useState(null);
-    const [dissociateLoading, setDissociateLoading] = useState(false);
-    const [showDissociateTrackingScanner, setShowDissociateTrackingScanner] = useState(false);
-    const [showDissociateBinScanner, setShowDissociateBinScanner] = useState(false);
+    // Current package being picked up
+    const [currentPickupPackage, setCurrentPickupPackage] = useState(null);
+    const [scannedTrackingId, setScannedTrackingId] = useState('');
+    const [pickupError, setPickupError] = useState(null);
+    const [showPickupScanner, setShowPickupScanner] = useState(false);
+    
+    // Dispatch verification
+    const [scannedDispatchBinId, setScannedDispatchBinId] = useState('');
+    const [dispatchError, setDispatchError] = useState(null);
+    const [showDispatchScanner, setShowDispatchScanner] = useState(false);
+    const [fileDispatchError, setFileDispatchError] = useState(null);
+    const [showFileDispatchScanner, setShowFileDispatchScanner] = useState(false);
 
     const handleBack = () => {
         navigate('/');
     };
 
-    // Search Package Functions
-    const handleSearchPackage = async () => {
-        if (!searchTrackingId.trim()) {
-            setSearchError('Please enter a tracking ID');
+    // Load bin packages
+    const handleLoadBin = async () => {
+        if (!binId.trim()) {
+            setError('Please enter a bin ID');
             return;
         }
 
-        setSearchLoading(true);
-        setSearchError(null);
-        setSearchResult(null);
+        setLoading(true);
+        setError(null);
+        setMessage(null);
 
         try {
-            const response = await api.post('/outbound/search_package/', {
-                tracking_id: searchTrackingId.trim()
+            const response = await api.post('/outbound/get_bin_packages/', {
+                bin_id: binId.trim().toUpperCase()
             });
 
             if (response.data.success) {
-                setSearchResult(response.data.package);
+                setBinInfo(response.data.bin);
+                setPackages(response.data.packages);
+                setMessage(`Loaded ${response.data.package_count} packages from bin ${binId}`);
             }
-            setSearchLoading(false);
         } catch (error) {
-            console.error('Search error:', error);
-            setSearchError(error.response?.data?.errors?.tracking_id?.[0] || 'Failed to search package');
-            setSearchLoading(false);
+            console.error('Load bin error:', error);
+            setError(error.response?.data?.errors?.bin_id?.[0] || 'Failed to load bin packages');
+            setPackages([]);
+            setBinInfo(null);
+        } finally {
+            setLoading(false);
         }
     };
 
-    const handleSearchScan = (scannedValue) => {
-        setSearchTrackingId(scannedValue);
-        setShowSearchScanner(false);
+    // Open pickup modal
+    const handleOpenPickupModal = (pkg) => {
+        if (pkg.status === 'picked') {
+            return; // Already picked
+        }
+        setCurrentPickupPackage(pkg);
+        setScannedTrackingId('');
+        setPickupError(null);
+        setShowPickupModal(true);
     };
 
-    const handleResetSearch = () => {
-        setSearchTrackingId('');
-        setSearchResult(null);
-        setSearchError(null);
-    };
-
-    // Search Bin Functions
-    const handleSearchBin = async () => {
-        if (!searchBinId.trim()) {
-            setBinError('Please enter a bin ID');
+    // Confirm pickup
+    const handleConfirmPickup = async () => {
+        if (!scannedTrackingId.trim()) {
+            setPickupError('Please scan or enter the tracking ID');
             return;
         }
 
-        setBinLoading(true);
-        setBinError(null);
-        setBinResult(null);
-
         try {
-            const response = await api.post('/outbound/search_bin/', {
-                bin_id: searchBinId.trim()
+            const response = await api.post('/outbound/pickup_package/', {
+                tracking_id: scannedTrackingId.trim().toUpperCase(),
+                expected_tracking_id: currentPickupPackage.tracking_id
             });
 
             if (response.data.success) {
-                setBinResult(response.data);
+                // Update package status in the list
+                setPackages(packages.map(pkg => 
+                    pkg.tracking_id === currentPickupPackage.tracking_id
+                        ? { ...pkg, status: 'picked' }
+                        : pkg
+                ));
+                setShowPickupModal(false);
+                setMessage(`✓ Package ${currentPickupPackage.tracking_id} picked successfully`);
             }
-            setBinLoading(false);
         } catch (error) {
-            console.error('Bin search error:', error);
-            setBinError(error.response?.data?.errors?.bin_id?.[0] || 'Failed to search bin');
-            setBinLoading(false);
+            console.error('Pickup error:', error);
+            if (error.response?.data?.mismatch) {
+                setPickupError('❌ Tracking ID mismatch! Please scan the correct package.');
+            } else {
+                setPickupError(error.response?.data?.errors?.tracking_id?.[0] || 'Failed to pickup package');
+            }
         }
     };
 
+    // Open dispatch modal
+    const handleOpenDispatchModal = () => {
+        const pickedCount = packages.filter(pkg => pkg.status === 'picked').length;
+        if (pickedCount === 0) {
+            setError('No packages picked. Please pick up packages before dispatching.');
+            return;
+        }
+        setScannedDispatchBinId('');
+        setDispatchError(null);
+        setShowDispatchModal(true);
+    };
+
+    // Confirm dispatch
+    const handleConfirmDispatch = async () => {
+        if (!scannedDispatchBinId.trim()) {
+            setDispatchError('Please scan or enter the bin ID');
+            return;
+        }
+
+        try {
+            const response = await api.post('/outbound/dispatch_packages/', {
+                bin_id: scannedDispatchBinId.trim().toUpperCase(),
+                expected_bin_id: binId.trim().toUpperCase()
+            });
+
+            if (response.data.success) {
+                setShowDispatchModal(false);
+                setMessage(`✓ Successfully dispatched ${response.data.dispatched_count} packages from bin ${binId}`);
+                
+                // Remove dispatched packages from list
+                setPackages(packages.filter(pkg => pkg.status !== 'picked'));
+                
+                // If all packages dispatched, reset
+                if (packages.filter(pkg => pkg.status !== 'picked').length === 0) {
+                    setTimeout(() => {
+                        handleReset();
+                    }, 2000);
+                }
+            }
+        } catch (error) {
+            console.error('Dispatch error:', error);
+            if (error.response?.data?.mismatch) {
+                setDispatchError('❌ Bin ID mismatch! Please scan the correct bin.');
+            } else {
+                setDispatchError(error.response?.data?.errors?.bin_id?.[0] || 'Failed to dispatch packages');
+            }
+        }
+    };
+
+    // Reset for new bin
+    const handleReset = () => {
+        setBinId('');
+        setPackages([]);
+        setBinInfo(null);
+        setError(null);
+        setMessage(null);
+    };
+
+    // File-based pickup handlers
+    const handleFileUpload = async (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        setFileLoading(true);
+        setFileError(null);
+        setFileMessage(null);
+
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const response = await api.post('/outbound/process_picklist_file/', formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data'
+                }
+            });
+
+            if (response.data.success) {
+                setFilePackages(response.data.packages.map(pkg => ({
+                    ...pkg,
+                    dispatched: false
+                })));
+                setFileMessage(`✓ Processed ${response.data.packages.length} packages from file`);
+                setUploadedFile(file);
+            }
+        } catch (error) {
+            console.error('File upload error:', error);
+            setFileError(error.response?.data?.error || 'Failed to process file');
+        } finally {
+            setFileLoading(false);
+        }
+    };
+
+    const handleOpenFileDispatchModal = (pkg) => {
+        if (pkg.dispatched) return;
+        setCurrentFilePackage(pkg);
+        setScannedTrackingId('');
+        setFileDispatchError(null);
+        setShowFileDispatchModal(true);
+    };
+
+    const handleConfirmFileDispatch = async () => {
+        if (!scannedTrackingId.trim()) {
+            setFileDispatchError('Please scan or enter the tracking ID');
+            return;
+        }
+
+        if (scannedTrackingId.trim().toUpperCase() !== currentFilePackage.tracking_id) {
+            setFileDispatchError('❌ Tracking ID mismatch! Please scan the correct package.');
+            return;
+        }
+
+        try {
+            const response = await api.post('/outbound/dispatch_single_package/', {
+                tracking_id: currentFilePackage.tracking_id
+            });
+
+            if (response.data.success) {
+                // Update package status
+                setFilePackages(filePackages.map(pkg => 
+                    pkg.tracking_id === currentFilePackage.tracking_id
+                        ? { ...pkg, dispatched: true }
+                        : pkg
+                ));
+                setShowFileDispatchModal(false);
+                setScannedTrackingId('');
+            }
+        } catch (error) {
+            console.error('Dispatch error:', error);
+            setFileDispatchError(error.response?.data?.error || 'Failed to dispatch package');
+        }
+    };
+
+    const handleFileReset = () => {
+        setUploadedFile(null);
+        setFilePackages([]);
+        setFileError(null);
+        setFileMessage(null);
+        document.getElementById('fileInput').value = '';
+    };
+
+    // Scanner handlers
     const handleBinScan = (scannedValue) => {
-        setSearchBinId(scannedValue);
+        setBinId(scannedValue.toUpperCase());
         setShowBinScanner(false);
     };
 
-    const handleResetBinSearch = () => {
-        setSearchBinId('');
-        setBinResult(null);
-        setBinError(null);
+    const handlePickupScan = (scannedValue) => {
+        setScannedTrackingId(scannedValue.toUpperCase());
+        setShowPickupScanner(false);
     };
 
-    // Dissociate Functions
-    const handleDissociate = async () => {
-        if (!dissociateTrackingId.trim() || !dissociateBinId.trim()) {
-            setDissociateError('Please enter both tracking ID and bin ID');
-            return;
-        }
-
-        setDissociateLoading(true);
-        setDissociateError(null);
-        setDissociateResult(null);
-
-        try {
-            const response = await api.post('/outbound/dissociate/', {
-                tracking_id: dissociateTrackingId.trim(),
-                bin_id: dissociateBinId.trim()
-            });
-
-            if (response.data.success) {
-                setDissociateResult(response.data);
-            }
-            setDissociateLoading(false);
-        } catch (error) {
-            console.error('Dissociate error:', error);
-            const errorMsg = error.response?.data?.errors?.non_field_errors?.[0] || 
-                           error.response?.data?.errors || 
-                           'Failed to dissociate package';
-            setDissociateError(errorMsg);
-            setDissociateLoading(false);
-        }
+    const handleDispatchScan = (scannedValue) => {
+        setScannedDispatchBinId(scannedValue.toUpperCase());
+        setShowDispatchScanner(false);
     };
 
-    const handleDissociateTrackingScan = (scannedValue) => {
-        setDissociateTrackingId(scannedValue);
-        setShowDissociateTrackingScanner(false);
-    };
-
-    const handleDissociateBinScan = (scannedValue) => {
-        setDissociateBinId(scannedValue);
-        setShowDissociateBinScanner(false);
-    };
-
-    const handleResetDissociate = () => {
-        setDissociateTrackingId('');
-        setDissociateBinId('');
-        setDissociateResult(null);
-        setDissociateError(null);
-    };
+    const pickedCount = packages.filter(pkg => pkg.status === 'picked').length;
+    const totalCount = packages.length;
 
     return (
         <div className="outbound-container">
             {/* Header */}
             <div className="header">
                 <div className="header-content">
-                    <div className="logo-section">
-                        <div className="logo">
-                            Flipkart
-                            <span className="logo-tagline">SCM</span>
-                        </div>
+                    <div className="header-left">
+                        <button className="back-btn" onClick={handleBack}>
+                            ← Back
+                        </button>
+                        <button className="dashboard-btn" onClick={() => navigate('/inventory-dashboard')}>
+                            📊 Dashboard
+                        </button>
                     </div>
+                    <div className="logo-section">
+                        <img 
+                            src="https://static-assets-web.flixcart.com/ekart-assets/assets/fonts/ekWhiteLogo.9be1302c8c55ee6342ddaa8e9a3e00aa.png" 
+                            alt="Ekart Logistics" 
+                            className="logo-img"
+                        />
+                    </div>
+                    <div className="header-right"></div>
                 </div>
             </div>
 
             {/* Main Content */}
             <div className="outbound-content">
-                <button className="back-button" onClick={handleBack}>
-                    ← Back to Home
-                </button>
-
                 <div className="outbound-card">
                     <div className="card-header">
-                        <h2>🚚 Outbound Process</h2>
-                        <p>Locate and pick up packages for dispatch</p>
+                        <h2>🚚 Outbound Process - Package Pickup</h2>
+                        <p>Pick up packages by bin or from file</p>
                     </div>
 
                     {/* Tabs */}
                     <div className="tabs-container">
                         <button 
-                            className={`tab-button ${activeTab === 'search-package' ? 'active' : ''}`}
-                            onClick={() => setActiveTab('search-package')}
+                            className={`tab-button ${activeTab === 'bin' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('bin')}
                         >
-                            📦 Search Package
+                            📦 Pickup by Bin
                         </button>
                         <button 
-                            className={`tab-button ${activeTab === 'search-bin' ? 'active' : ''}`}
-                            onClick={() => setActiveTab('search-bin')}
+                            className={`tab-button ${activeTab === 'file' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('file')}
                         >
-                            📊 Bin Audit
-                        </button>
-                        <button 
-                            className={`tab-button ${activeTab === 'dissociate' ? 'active' : ''}`}
-                            onClick={() => setActiveTab('dissociate')}
-                        >
-                            ✅ Pick Up Package
+                            📄 Pickup by File
                         </button>
                     </div>
 
                     <div className="card-body">
-                        {/* Search Package Tab */}
-                        {activeTab === 'search-package' && (
-                            <div className="tab-content">
-                                <h3>Find Package Location</h3>
-                                <p className="instruction">Enter or scan tracking ID to find bin location</p>
-
-                                <div className="input-group">
-                                    <input
-                                        type="text"
-                                        className="input-field"
-                                        placeholder="Enter Tracking ID"
-                                        value={searchTrackingId}
-                                        onChange={(e) => setSearchTrackingId(e.target.value)}
-                                        disabled={searchLoading}
-                                    />
-                                    <button 
-                                        className="scan-button"
-                                        onClick={() => setShowSearchScanner(true)}
-                                        disabled={searchLoading}
-                                    >
-                                        📷 Scan
-                                    </button>
-                                </div>
-
+                        {activeTab === 'bin' && (
+                            <>
+                        {/* Bin Input Section */}
+                        <div className="bin-input-section">
+                            <h3>Scan or Enter Bin ID</h3>
+                            <div className="input-group">
+                                <input
+                                    type="text"
+                                    className="input-field"
+                                    placeholder="Enter Bin ID (e.g., L1R1B01)"
+                                    value={binId}
+                                    onChange={(e) => setBinId(e.target.value.toUpperCase())}
+                                    disabled={loading || packages.length > 0}
+                                />
+                                <button 
+                                    className="scan-button"
+                                    onClick={() => setShowBinScanner(true)}
+                                    disabled={loading || packages.length > 0}
+                                >
+                                    📷 Scan
+                                </button>
                                 <button 
                                     className="action-button"
-                                    onClick={handleSearchPackage}
-                                    disabled={searchLoading}
+                                    onClick={handleLoadBin}
+                                    disabled={loading || packages.length > 0}
                                 >
-                                    {searchLoading ? '⏳ Searching...' : '🔍 Search Package'}
+                                    {loading ? '⏳ Loading...' : '📦 Load Packages'}
                                 </button>
+                            </div>
+                        </div>
 
-                                {searchError && (
-                                    <div className="error-box">
-                                        ⚠️ {searchError}
-                                    </div>
-                                )}
-
-                                {searchResult && (
-                                    <div className="result-box">
-                                        <h4>✅ Package Found</h4>
-                                        <div className="result-details">
-                                            <div className="detail-row">
-                                                <span className="label">Tracking ID:</span>
-                                                <span className="value">{searchResult.tracking_id}</span>
-                                            </div>
-                                            <div className="detail-row">
-                                                <span className="label">Status:</span>
-                                                <span className={`status-badge ${searchResult.status}`}>
-                                                    {searchResult.status}
-                                                </span>
-                                            </div>
-                                            {searchResult.bin ? (
-                                                <>
-                                                    <div className="detail-row highlight">
-                                                        <span className="label">📍 Bin Location:</span>
-                                                        <span className="value bin-highlight">{searchResult.bin.bin_id}</span>
-                                                    </div>
-                                                    <div className="detail-row">
-                                                        <span className="label">Bin Address:</span>
-                                                        <span className="value">{searchResult.bin.location}</span>
-                                                    </div>
-                                                </>
-                                            ) : (
-                                                <div className="detail-row">
-                                                    <span className="label">Bin:</span>
-                                                    <span className="value">Not assigned</span>
-                                                </div>
-                                            )}
-                                        </div>
-                                        <button className="reset-button" onClick={handleResetSearch}>
-                                            🔄 Search Another
-                                        </button>
-                                    </div>
-                                )}
+                        {/* Messages */}
+                        {error && (
+                            <div className="error-box">
+                                ⚠️ {error}
                             </div>
                         )}
 
-                        {/* Search Bin Tab */}
-                        {activeTab === 'search-bin' && (
-                            <div className="tab-content">
-                                <h3>Bin Audit</h3>
-                                <p className="instruction">Enter or scan bin ID to view all packages</p>
-
-                                <div className="input-group">
-                                    <input
-                                        type="text"
-                                        className="input-field"
-                                        placeholder="Enter Bin ID"
-                                        value={searchBinId}
-                                        onChange={(e) => setSearchBinId(e.target.value)}
-                                        disabled={binLoading}
-                                    />
-                                    <button 
-                                        className="scan-button"
-                                        onClick={() => setShowBinScanner(true)}
-                                        disabled={binLoading}
-                                    >
-                                        📷 Scan
-                                    </button>
-                                </div>
-
-                                <button 
-                                    className="action-button"
-                                    onClick={handleSearchBin}
-                                    disabled={binLoading}
-                                >
-                                    {binLoading ? '⏳ Searching...' : '🔍 Search Bin'}
-                                </button>
-
-                                {binError && (
-                                    <div className="error-box">
-                                        ⚠️ {binError}
-                                    </div>
-                                )}
-
-                                {binResult && (
-                                    <div className="result-box">
-                                        <h4>📦 Bin Contents</h4>
-                                        <div className="result-details">
-                                            <div className="detail-row highlight">
-                                                <span className="label">Bin ID:</span>
-                                                <span className="value bin-highlight">{binResult.bin.bin_id}</span>
-                                            </div>
-                                            <div className="detail-row">
-                                                <span className="label">Location:</span>
-                                                <span className="value">{binResult.bin.location}</span>
-                                            </div>
-                                            <div className="detail-row">
-                                                <span className="label">Status:</span>
-                                                <span className={`status-badge ${binResult.bin.status}`}>
-                                                    {binResult.bin.status}
-                                                </span>
-                                            </div>
-                                            <div className="detail-row">
-                                                <span className="label">Package Count:</span>
-                                                <span className="value">{binResult.package_count}</span>
-                                            </div>
-                                        </div>
-
-                                        {binResult.packages && binResult.packages.length > 0 ? (
-                                            <div className="packages-list">
-                                                <h5>Packages in this Bin:</h5>
-                                                {binResult.packages.map((pkg, index) => (
-                                                    <div key={index} className="package-item">
-                                                        <div className="package-info">
-                                                            <span className="tracking-id">{pkg.tracking_id}</span>
-                                                            <span className={`status-badge ${pkg.status}`}>
-                                                                {pkg.status}
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        ) : (
-                                            <div className="empty-message">
-                                                📭 No packages in this bin
-                                            </div>
-                                        )}
-
-                                        <button className="reset-button" onClick={handleResetBinSearch}>
-                                            🔄 Search Another Bin
-                                        </button>
-                                    </div>
-                                )}
+                        {message && (
+                            <div className="success-box">
+                                {message}
                             </div>
                         )}
 
-                        {/* Dissociate Tab */}
-                        {activeTab === 'dissociate' && (
-                            <div className="tab-content">
-                                <h3>Pick Up Package</h3>
-                                <p className="instruction">Remove package from bin for dispatch</p>
-
-                                <div className="input-group">
-                                    <input
-                                        type="text"
-                                        className="input-field"
-                                        placeholder="Enter Tracking ID"
-                                        value={dissociateTrackingId}
-                                        onChange={(e) => setDissociateTrackingId(e.target.value)}
-                                        disabled={dissociateLoading}
-                                    />
-                                    <button 
-                                        className="scan-button"
-                                        onClick={() => setShowDissociateTrackingScanner(true)}
-                                        disabled={dissociateLoading}
-                                    >
-                                        📷 Scan
-                                    </button>
-                                </div>
-
-                                <div className="input-group">
-                                    <input
-                                        type="text"
-                                        className="input-field"
-                                        placeholder="Enter Bin ID"
-                                        value={dissociateBinId}
-                                        onChange={(e) => setDissociateBinId(e.target.value)}
-                                        disabled={dissociateLoading}
-                                    />
-                                    <button 
-                                        className="scan-button"
-                                        onClick={() => setShowDissociateBinScanner(true)}
-                                        disabled={dissociateLoading}
-                                    >
-                                        📷 Scan
-                                    </button>
-                                </div>
-
-                                <button 
-                                    className="action-button pickup"
-                                    onClick={handleDissociate}
-                                    disabled={dissociateLoading}
-                                >
-                                    {dissociateLoading ? '⏳ Processing...' : '📤 Pick Up Package'}
-                                </button>
-
-                                {dissociateError && (
-                                    <div className="error-box">
-                                        ⚠️ {dissociateError}
+                        {/* Bin Info and Packages */}
+                        {binInfo && packages.length > 0 && (
+                            <div className="packages-section">
+                                <div className="bin-info-header">
+                                    <div className="bin-details">
+                                        <h3>📍 Bin: {binInfo.bin_id}</h3>
+                                        <p>Location: {binInfo.location}</p>
+                                        <p>Progress: {pickedCount}/{totalCount} packages picked</p>
                                     </div>
-                                )}
-
-                                {dissociateResult && (
-                                    <div className="result-box success">
-                                        <h4>✅ Package Picked Up Successfully</h4>
-                                        <div className="success-message">
-                                            {dissociateResult.message}
-                                        </div>
-                                        <div className="result-details">
-                                            <div className="detail-row">
-                                                <span className="label">Tracking ID:</span>
-                                                <span className="value">{dissociateResult.package.tracking_id}</span>
-                                            </div>
-                                            <div className="detail-row">
-                                                <span className="label">New Status:</span>
-                                                <span className={`status-badge ${dissociateResult.package.status}`}>
-                                                    {dissociateResult.package.status}
-                                                </span>
-                                            </div>
-                                        </div>
-                                        <button className="reset-button" onClick={handleResetDissociate}>
-                                            🔄 Pick Up Another
+                                    <div className="action-buttons">
+                                        <button 
+                                            className="dispatch-button"
+                                            onClick={handleOpenDispatchModal}
+                                            disabled={pickedCount === 0}
+                                        >
+                                            🚚 Dispatch ({pickedCount})
+                                        </button>
+                                        <button 
+                                            className="reset-button"
+                                            onClick={handleReset}
+                                        >
+                                            🔄 New Bin
                                         </button>
                                     </div>
+                                </div>
+
+                                <div className="packages-list">
+                                    <table className="packages-table">
+                                        <thead>
+                                            <tr>
+                                                <th>#</th>
+                                                <th>Tracking ID</th>
+                                                <th>Source</th>
+                                                <th>Status</th>
+                                                <th>Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {packages.map((pkg, index) => (
+                                                <tr 
+                                                    key={pkg.tracking_id}
+                                                    className={pkg.status === 'picked' ? 'picked-row' : ''}
+                                                >
+                                                    <td>{index + 1}</td>
+                                                    <td className="tracking-cell">{pkg.tracking_id}</td>
+                                                    <td>{pkg.manifested ? '📋 Manifest' : '🆕 New'}</td>
+                                                    <td>
+                                                        <span className={`status-badge ${pkg.status}`}>
+                                                            {pkg.status === 'picked' ? '✓ Picked' : pkg.status}
+                                                        </span>
+                                                    </td>
+                                                    <td>
+                                                        {pkg.status === 'picked' ? (
+                                                            <span className="picked-indicator">✓ Ready</span>
+                                                        ) : (
+                                                            <button 
+                                                                className="pickup-button"
+                                                                onClick={() => handleOpenPickupModal(pkg)}
+                                                            >
+                                                                📦 Pick Up
+                                                            </button>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        )}
+
+                        {binInfo && packages.length === 0 && (
+                            <div className="empty-bin-message">
+                                <p>No packages found in this bin</p>
+                                <button className="reset-button" onClick={handleReset}>
+                                    Try Another Bin
+                                </button>
+                            </div>
+                        )}
+                            </>
+                        )}
+
+                        {activeTab === 'file' && (
+                            <>
+                        {/* File Upload Section */}
+                        <div className="file-upload-section">
+                            <h3>Upload Picklist File</h3>
+                            <p className="file-instructions">
+                                Upload a CSV or JSON file containing tracking IDs to create a picklist
+                            </p>
+                            
+                            <div className="file-input-group">
+                                <input
+                                    id="fileInput"
+                                    type="file"
+                                    accept=".csv,.json"
+                                    onChange={handleFileUpload}
+                                    disabled={fileLoading || filePackages.length > 0}
+                                    style={{ display: 'none' }}
+                                />
+                                <label 
+                                    htmlFor="fileInput" 
+                                    className={`file-input-label ${fileLoading || filePackages.length > 0 ? 'disabled' : ''}`}
+                                >
+                                    📁 {uploadedFile ? uploadedFile.name : 'Choose File'}
+                                </label>
+                                {filePackages.length > 0 && (
+                                    <button className="reset-button" onClick={handleFileReset}>
+                                        🔄 Upload New File
+                                    </button>
                                 )}
                             </div>
+
+                            {fileLoading && (
+                                <div className="loading-message">
+                                    ⏳ Processing file...
+                                </div>
+                            )}
+                        </div>
+
+                        {/* File Messages */}
+                        {fileError && (
+                            <div className="error-box">
+                                ⚠️ {fileError}
+                            </div>
+                        )}
+
+                        {fileMessage && (
+                            <div className="success-box">
+                                {fileMessage}
+                            </div>
+                        )}
+
+                        {/* File Packages List */}
+                        {filePackages.length > 0 && (
+                            <div className="packages-section">
+                                <div className="file-packages-header">
+                                    <h3>📋 Picklist Packages</h3>
+                                    <p>
+                                        {filePackages.filter(pkg => pkg.dispatched).length} / {filePackages.length} dispatched
+                                    </p>
+                                </div>
+
+                                <div className="packages-list">
+                                    <table className="packages-table">
+                                        <thead>
+                                            <tr>
+                                                <th>#</th>
+                                                <th>Tracking ID</th>
+                                                <th>Bin ID</th>
+                                                <th>Status</th>
+                                                <th>Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {filePackages.map((pkg, index) => (
+                                                <tr 
+                                                    key={pkg.tracking_id}
+                                                    className={pkg.dispatched ? 'dispatched-row' : ''}
+                                                >
+                                                    <td>{index + 1}</td>
+                                                    <td className="tracking-cell">{pkg.tracking_id}</td>
+                                                    <td>{pkg.bin_id || 'N/A'}</td>
+                                                    <td>
+                                                        <span className={`status-badge ${pkg.dispatched ? 'dispatched' : 'picklist-created'}`}>
+                                                            {pkg.dispatched ? '✓ Dispatched' : '📋 Picklist Created'}
+                                                        </span>
+                                                    </td>
+                                                    <td>
+                                                        {pkg.dispatched ? (
+                                                            <span className="dispatched-indicator">✓ Done</span>
+                                                        ) : (
+                                                            <button 
+                                                                className="dispatch-single-button"
+                                                                onClick={() => handleOpenFileDispatchModal(pkg)}
+                                                            >
+                                                                🚚 Dispatch
+                                                            </button>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        )}
+                            </>
                         )}
                     </div>
                 </div>
             </div>
 
-            {/* Barcode Scanners */}
-            {showSearchScanner && (
-                <BarcodeScanner
-                    onScan={handleSearchScan}
-                    onClose={() => setShowSearchScanner(false)}
-                />
+            {/* Pickup Modal */}
+            {showPickupModal && (
+                <div className="modal-overlay" onClick={() => setShowPickupModal(false)}>
+                    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h3>Confirm Package Pickup</h3>
+                            <button className="close-button" onClick={() => setShowPickupModal(false)}>×</button>
+                        </div>
+                        <div className="modal-body">
+                            <p className="modal-instruction">
+                                Please scan or enter tracking ID to confirm:
+                            </p>
+                            <p className="expected-value">
+                                <strong>Expected: {currentPickupPackage?.tracking_id}</strong>
+                            </p>
+                            
+                            <div className="input-group">
+                                <input
+                                    type="text"
+                                    className="input-field"
+                                    placeholder="Scan or enter Tracking ID"
+                                    value={scannedTrackingId}
+                                    onChange={(e) => setScannedTrackingId(e.target.value.toUpperCase())}
+                                    autoFocus
+                                />
+                                <button 
+                                    className="scan-button"
+                                    onClick={() => setShowPickupScanner(true)}
+                                >
+                                    📷 Scan
+                                </button>
+                            </div>
+
+                            {pickupError && (
+                                <div className="error-box">
+                                    {pickupError}
+                                </div>
+                            )}
+                        </div>
+                        <div className="modal-footer">
+                            <button className="cancel-button" onClick={() => setShowPickupModal(false)}>
+                                Cancel
+                            </button>
+                            <button className="confirm-button" onClick={handleConfirmPickup}>
+                                ✓ Confirm Pickup
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
+
+            {/* Dispatch Modal */}
+            {showDispatchModal && (
+                <div className="modal-overlay" onClick={() => setShowDispatchModal(false)}>
+                    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h3>Confirm Dispatch</h3>
+                            <button className="close-button" onClick={() => setShowDispatchModal(false)}>×</button>
+                        </div>
+                        <div className="modal-body">
+                            <p className="modal-instruction">
+                                Please scan or enter bin ID to confirm dispatch:
+                            </p>
+                            <p className="expected-value">
+                                <strong>Expected: {binId}</strong>
+                            </p>
+                            <p className="dispatch-info">
+                                Dispatching <strong>{pickedCount}</strong> picked packages
+                            </p>
+                            
+                            <div className="input-group">
+                                <input
+                                    type="text"
+                                    className="input-field"
+                                    placeholder="Scan or enter Bin ID"
+                                    value={scannedDispatchBinId}
+                                    onChange={(e) => setScannedDispatchBinId(e.target.value.toUpperCase())}
+                                    autoFocus
+                                />
+                                <button 
+                                    className="scan-button"
+                                    onClick={() => setShowDispatchScanner(true)}
+                                >
+                                    📷 Scan
+                                </button>
+                            </div>
+
+                            {dispatchError && (
+                                <div className="error-box">
+                                    {dispatchError}
+                                </div>
+                            )}
+                        </div>
+                        <div className="modal-footer">
+                            <button className="cancel-button" onClick={() => setShowDispatchModal(false)}>
+                                Cancel
+                            </button>
+                            <button className="confirm-button" onClick={handleConfirmDispatch}>
+                                🚚 Confirm Dispatch
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* File Dispatch Modal */}
+            {showFileDispatchModal && (
+                <div className="modal-overlay" onClick={() => setShowFileDispatchModal(false)}>
+                    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h3>Confirm Package Dispatch</h3>
+                            <button className="close-button" onClick={() => setShowFileDispatchModal(false)}>×</button>
+                        </div>
+                        <div className="modal-body">
+                            <p className="modal-instruction">
+                                Please scan or enter tracking ID to confirm dispatch:
+                            </p>
+                            <p className="expected-value">
+                                <strong>Expected: {currentFilePackage?.tracking_id}</strong>
+                            </p>
+                            <p className="dispatch-info">
+                                Bin: <strong>{currentFilePackage?.bin_id || 'N/A'}</strong>
+                            </p>
+                            
+                            <div className="input-group">
+                                <input
+                                    type="text"
+                                    className="input-field"
+                                    placeholder="Scan or enter Tracking ID"
+                                    value={scannedTrackingId}
+                                    onChange={(e) => setScannedTrackingId(e.target.value.toUpperCase())}
+                                    autoFocus
+                                />
+                                <button 
+                                    className="scan-button"
+                                    onClick={() => setShowFileDispatchScanner(true)}
+                                >
+                                    📷 Scan
+                                </button>
+                            </div>
+
+                            {fileDispatchError && (
+                                <div className="error-box">
+                                    {fileDispatchError}
+                                </div>
+                            )}
+                        </div>
+                        <div className="modal-footer">
+                            <button className="cancel-button" onClick={() => setShowFileDispatchModal(false)}>
+                                Cancel
+                            </button>
+                            <button className="confirm-button" onClick={handleConfirmFileDispatch}>
+                                🚚 Confirm Dispatch
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Scanners */}
             {showBinScanner && (
-                <BarcodeScanner
-                    onScan={handleBinScan}
+                <BarcodeScanner 
+                    onScanSuccess={handleBinScan}
                     onClose={() => setShowBinScanner(false)}
+                    scannerType="Bin ID"
                 />
             )}
-            {showDissociateTrackingScanner && (
-                <BarcodeScanner
-                    onScan={handleDissociateTrackingScan}
-                    onClose={() => setShowDissociateTrackingScanner(false)}
+
+            {showPickupScanner && (
+                <BarcodeScanner 
+                    onScanSuccess={handlePickupScan}
+                    onClose={() => setShowPickupScanner(false)}
+                    scannerType="Tracking ID"
                 />
             )}
-            {showDissociateBinScanner && (
-                <BarcodeScanner
-                    onScan={handleDissociateBinScan}
-                    onClose={() => setShowDissociateBinScanner(false)}
+
+            {showDispatchScanner && (
+                <BarcodeScanner 
+                    onScanSuccess={handleDispatchScan}
+                    onClose={() => setShowDispatchScanner(false)}
+                    scannerType="Bin ID"
+                />
+            )}
+
+            {showFileDispatchScanner && (
+                <BarcodeScanner 
+                    onScanSuccess={(scannedValue) => {
+                        setScannedTrackingId(scannedValue.toUpperCase());
+                        setShowFileDispatchScanner(false);
+                    }}
+                    onClose={() => setShowFileDispatchScanner(false)}
+                    scannerType="Tracking ID"
                 />
             )}
         </div>

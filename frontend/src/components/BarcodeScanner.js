@@ -1,19 +1,32 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import './BarcodeScanner.css';
 
 const BarcodeScanner = ({ onScanSuccess, onClose, scannerType }) => {
+    const scannerRef = useRef(null);
+    const isInitialized = useRef(false);
+
     useEffect(() => {
+        // Prevent duplicate initialization
+        if (isInitialized.current) {
+            return;
+        }
+        isInitialized.current = true;
+
+        // Clear any existing content in the scanner element
+        const scannerElement = document.getElementById('qr-reader');
+        if (scannerElement) {
+            scannerElement.innerHTML = '';
+        }
+
         const config = {
             fps: 10,
             qrbox: { width: 250, height: 150 },
             aspectRatio: 1.777778,
             rememberLastUsedCamera: true,
             supportedScanTypes: [
-                // QR Codes
-                0,
-                // Barcodes
-                1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15
+                0,  // QR Codes
+                1   // Standard barcode
             ]
         };
 
@@ -23,10 +36,14 @@ const BarcodeScanner = ({ onScanSuccess, onClose, scannerType }) => {
             false
         );
 
+        scannerRef.current = html5QrcodeScanner;
+
         html5QrcodeScanner.render(
             (decodedText) => {
                 onScanSuccess(decodedText);
-                html5QrcodeScanner.clear();
+                html5QrcodeScanner.clear().catch(error => {
+                    console.error("Failed to clear scanner:", error);
+                });
             },
             (error) => {
                 // Ignore errors while scanning
@@ -34,13 +51,19 @@ const BarcodeScanner = ({ onScanSuccess, onClose, scannerType }) => {
         );
 
         return () => {
-            if (html5QrcodeScanner) {
-                html5QrcodeScanner.clear().catch(error => {
+            if (scannerRef.current) {
+                scannerRef.current.clear().catch(error => {
                     console.error("Failed to clear scanner:", error);
                 });
+                scannerRef.current = null;
             }
+            // Clear the DOM element on cleanup
+            if (scannerElement) {
+                scannerElement.innerHTML = '';
+            }
+            isInitialized.current = false;
         };
-    }, [onScanSuccess]);
+    }, []);
 
     return (
         <div className="scanner-overlay">

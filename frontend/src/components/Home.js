@@ -13,8 +13,12 @@ const Home = () => {
         navigate('/outbound');
     };
 
-    const handleNavigateToReconciliation = () => {
-        navigate('/status-reconciliation');
+    const handleNavigateToManifestCreation = () => {
+        navigate('/manifest-creation');
+    };
+
+    const handleNavigateToInventoryDashboard = () => {
+        navigate('/inventory-dashboard');
     };
 
     return (
@@ -23,10 +27,11 @@ const Home = () => {
             <div className="header">
                 <div className="header-content">
                     <div className="logo-section">
-                        <div className="logo">
-                            Flipkart
-                            <span className="logo-tagline">SCM</span>
-                        </div>
+                        <img 
+                            src="https://static-assets-web.flixcart.com/ekart-assets/assets/fonts/ekWhiteLogo.9be1302c8c55ee6342ddaa8e9a3e00aa.png" 
+                            alt="Ekart Logistics" 
+                            className="logo-img"
+                        />
                     </div>
                 </div>
             </div>
@@ -65,6 +70,21 @@ const Home = () => {
                 <div className="apps-section">
                     <h2 className="section-title">Select an Application</h2>
                     <div className="apps-grid">
+                        {/* Manifest Creation App Card - FIRST */}
+                        <div 
+                            className="app-card manifest-card" 
+                            onClick={handleNavigateToManifestCreation}
+                        >
+                            <div className="app-icon">
+                                📋
+                            </div>
+                            <h3 className="app-name">Manifest Creation</h3>
+                            <p className="app-description">
+                                Upload manifest and create shipment records
+                            </p>
+                            <div className="app-badge">Active</div>
+                        </div>
+
                         {/* Inbound App Card */}
                         <div 
                             className="app-card inbound-card" 
@@ -80,21 +100,6 @@ const Home = () => {
                             <div className="app-badge">Active</div>
                         </div>
 
-                        {/* Status Reconciliation App Card */}
-                        <div 
-                            className="app-card reconciliation-card" 
-                            onClick={handleNavigateToReconciliation}
-                        >
-                            <div className="app-icon">
-                                ✅
-                            </div>
-                            <h3 className="app-name">Status Reconciliation</h3>
-                            <p className="app-description">
-                                Upload manifest and update shipment status
-                            </p>
-                            <div className="app-badge">Active</div>
-                        </div>
-
                         {/* Outbound App Card */}
                         <div 
                             className="app-card outbound-card" 
@@ -106,6 +111,21 @@ const Home = () => {
                             <h3 className="app-name">Outbound Process</h3>
                             <p className="app-description">
                                 Locate and pick up packages for dispatch
+                            </p>
+                            <div className="app-badge">Active</div>
+                        </div>
+
+                        {/* Inventory Dashboard Card */}
+                        <div 
+                            className="app-card dashboard-card" 
+                            onClick={handleNavigateToInventoryDashboard}
+                        >
+                            <div className="app-icon">
+                                📊
+                            </div>
+                            <h3 className="app-name">Inventory Dashboard</h3>
+                            <p className="app-description">
+                                View warehouse analytics and inventory status
                             </p>
                             <div className="app-badge">Active</div>
                         </div>

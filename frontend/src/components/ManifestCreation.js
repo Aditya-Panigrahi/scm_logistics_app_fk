@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import './StatusReconciliation.css';
+import './ManifestCreation.css';
 import api from '../services/api';
 
-const StatusReconciliation = () => {
+const ManifestCreation = () => {
     const navigate = useNavigate();
     const [selectedFile, setSelectedFile] = useState(null);
     const [fileType, setFileType] = useState('csv');
@@ -43,28 +43,55 @@ const StatusReconciliation = () => {
             if (fileType === 'csv') {
                 // Parse CSV
                 const lines = fileContent.split('\n').filter(line => line.trim());
-                // Skip header if present
-                const startIndex = lines[0].toLowerCase().includes('tracking') ? 1 : 0;
-                trackingIds = lines.slice(startIndex).map(line => {
-                    // Handle CSV with commas - take first column
-                    const columns = line.split(',');
-                    return columns[0].trim();
-                }).filter(id => id);
+                
+                if (lines.length === 0) {
+                    setError('File is empty');
+                    setLoading(false);
+                    return;
+                }
+
+                // Find the header row
+                const headerLine = lines[0];
+                const headers = headerLine.split(',').map(h => h.trim().toLowerCase());
+                
+                // Find the "Tracking Id" column index
+                const trackingIdIndex = headers.findIndex(h => 
+                    h === 'tracking id' || h === 'tracking_id' || h === 'trackingid'
+                );
+
+                if (trackingIdIndex === -1) {
+                    // If no header found, assume first column is tracking ID
+                    trackingIds = lines.map(line => {
+                        const columns = line.split(',');
+                        return columns[0].trim();
+                    }).filter(id => id && id.toLowerCase() !== 'tracking id' && id.toLowerCase() !== 'tracking_id');
+                } else {
+                    // Extract tracking IDs from the identified column
+                    trackingIds = lines.slice(1).map(line => {
+                        const columns = line.split(',');
+                        return columns[trackingIdIndex] ? columns[trackingIdIndex].trim() : '';
+                    }).filter(id => id);
+                }
             } else if (fileType === 'json') {
                 // Parse JSON
                 const jsonData = JSON.parse(fileContent);
                 // Support both array of strings and array of objects with tracking_id field
                 if (Array.isArray(jsonData)) {
-                    trackingIds = jsonData.map(item => 
-                        typeof item === 'string' ? item : item.tracking_id
-                    ).filter(id => id);
+                    trackingIds = jsonData.map(item => {
+                        if (typeof item === 'string') {
+                            return item;
+                        } else if (item.tracking_id || item['Tracking Id']) {
+                            return item.tracking_id || item['Tracking Id'];
+                        }
+                        return null;
+                    }).filter(id => id);
                 } else if (jsonData.tracking_ids) {
                     trackingIds = jsonData.tracking_ids;
                 }
             }
 
             if (trackingIds.length === 0) {
-                setError('No tracking IDs found in the file');
+                setError('No tracking IDs found in the file. Please ensure the file has a "Tracking Id" column.');
                 setLoading(false);
                 return;
             }
@@ -95,29 +122,35 @@ const StatusReconciliation = () => {
     };
 
     return (
-        <div className="reconciliation-container">
+        <div className="manifest-container">
             {/* Header */}
             <div className="header">
                 <div className="header-content">
-                    <div className="logo-section">
-                        <div className="logo">
-                            Flipkart
-                            <span className="logo-tagline">SCM</span>
-                        </div>
+                    <div className="header-left">
+                        <button className="back-btn" onClick={handleBack}>
+                            ← Back
+                        </button>
+                        <button className="dashboard-btn" onClick={() => navigate('/inventory-dashboard')}>
+                            📊 Dashboard
+                        </button>
                     </div>
+                    <div className="logo-section">
+                        <img 
+                            src="https://static-assets-web.flixcart.com/ekart-assets/assets/fonts/ekWhiteLogo.9be1302c8c55ee6342ddaa8e9a3e00aa.png" 
+                            alt="Ekart Logistics" 
+                            className="logo-img"
+                        />
+                    </div>
+                    <div className="header-right"></div>
                 </div>
             </div>
 
             {/* Main Content */}
-            <div className="reconciliation-content">
-                <button className="back-button" onClick={handleBack}>
-                    ← Back to Home
-                </button>
-
-                <div className="reconciliation-card">
+            <div className="manifest-content">
+                <div className="manifest-card">
                     <div className="card-header">
-                        <h2>✅ Status Reconciliation</h2>
-                        <p>Upload manifest file to update shipment status</p>
+                        <h2>📋 Manifest Creation</h2>
+                        <p>Upload manifest file to create shipment records</p>
                     </div>
 
                     <div className="card-body">
@@ -129,10 +162,10 @@ const StatusReconciliation = () => {
                                         📄 Supported formats: CSV, JSON
                                     </p>
                                     <p className="info-text">
-                                        CSV format: One tracking ID per line (with or without header)
+                                        CSV format: Must have a "Tracking Id" column header
                                     </p>
                                     <p className="info-text">
-                                        JSON format: Array of tracking IDs or objects with tracking_id field
+                                        JSON format: Array of objects with "tracking_id" or "Tracking Id" field
                                     </p>
                                 </div>
 
@@ -162,7 +195,7 @@ const StatusReconciliation = () => {
                                     onClick={handleUpload}
                                     disabled={!selectedFile || loading}
                                 >
-                                    {loading ? '⏳ Processing...' : '🚀 Upload & Process'}
+                                    {loading ? '⏳ Processing...' : '🚀 Upload & Create Manifest'}
                                 </button>
 
                                 {error && (
@@ -182,9 +215,17 @@ const StatusReconciliation = () => {
 
                                 <div className="results-summary">
                                     <div className="summary-card success">
+                                        <div className="summary-icon">✨</div>
+                                        <div className="summary-text">
+                                            <div className="summary-number">{results.created_count || 0}</div>
+                                            <div className="summary-label">Created</div>
+                                        </div>
+                                    </div>
+
+                                    <div className="summary-card updated">
                                         <div className="summary-icon">✔️</div>
                                         <div className="summary-text">
-                                            <div className="summary-number">{results.updated_count}</div>
+                                            <div className="summary-number">{results.updated_count || 0}</div>
                                             <div className="summary-label">Updated</div>
                                         </div>
                                     </div>
@@ -206,9 +247,22 @@ const StatusReconciliation = () => {
                                     </div>
                                 </div>
 
+                                {results.created_ids && results.created_ids.length > 0 && (
+                                    <div className="results-detail">
+                                        <h4>✨ Successfully Created ({results.created_ids.length})</h4>
+                                        <div className="tracking-list">
+                                            {results.created_ids.map((id, index) => (
+                                                <div key={index} className="tracking-item success-item">
+                                                    {id}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
                                 {results.updated_ids && results.updated_ids.length > 0 && (
                                     <div className="results-detail">
-                                        <h4>✅ Successfully Updated ({results.updated_ids.length})</h4>
+                                        <h4>✔️ Successfully Updated ({results.updated_ids.length})</h4>
                                         <div className="tracking-list">
                                             {results.updated_ids.map((id, index) => (
                                                 <div key={index} className="tracking-item success-item">
@@ -221,7 +275,7 @@ const StatusReconciliation = () => {
 
                                 {results.failed_ids && results.failed_ids.length > 0 && (
                                     <div className="results-detail">
-                                        <h4>❌ Failed Updates ({results.failed_ids.length})</h4>
+                                        <h4>❌ Failed ({results.failed_ids.length})</h4>
                                         <div className="tracking-list">
                                             {results.failed_ids.map((item, index) => (
                                                 <div key={index} className="tracking-item failed-item">
@@ -244,4 +298,4 @@ const StatusReconciliation = () => {
     );
 };
 
-export default StatusReconciliation;
+export default ManifestCreation;

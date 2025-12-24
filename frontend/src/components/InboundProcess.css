@@ -20,10 +20,27 @@
     justify-content: space-between;
 }
 
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+}
+
+.header-right {
+    flex: 1;
+}
+
 .logo-section {
     display: flex;
     align-items: center;
-    gap: 16px;
+    justify-content: center;
+    flex: 1;
+}
+
+.logo-img {
+    height: 40px;
+    width: auto;
 }
 
 .back-btn {
@@ -44,7 +61,26 @@
 .back-btn:hover {
     background: rgba(255, 255, 255, 0.3);
     border-color: rgba(255, 255, 255, 0.5);
-    transform: translateX(-2px);
+}
+
+.dashboard-btn {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.dashboard-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.5);
 }
 
 .logo {
@@ -121,6 +157,134 @@
     background: #e3f2fd;
     color: #1565c0;
     border-left: 4px solid #2196f3;
+}
+
+.message.warning {
+    background: #fff3e0;
+    color: #f57c00;
+    border-left: 4px solid #ff9800;
+}
+
+.validation-status {
+    margin-top: 10px;
+    padding: 10px;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.validation-status.success {
+    background: #e8f5e9;
+    color: #2e7d32;
+}
+
+.unlock-btn {
+    background: #ff9800;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.3s;
+}
+
+.unlock-btn:hover {
+    background: #f57c00;
+}
+
+.assign-btn-inline {
+    background: #4caf50;
+    color: white;
+    border: none;
+    padding: 8px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.3s;
+}
+
+.assign-btn-inline:hover:not(:disabled) {
+    background: #45a049;
+}
+
+.assign-btn-inline:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+}
+
+.assigned-packages-list {
+    margin-top: 20px;
+    padding: 20px;
+    background: #f5f5f5;
+    border-radius: 4px;
+}
+
+.assigned-packages-list h3 {
+    margin: 0 0 15px 0;
+    color: #333;
+    font-size: 18px;
+}
+
+.packages-table {
+    overflow-x: auto;
+}
+
+.packages-table table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.packages-table th,
+.packages-table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.packages-table th {
+    background: #2874f0;
+    color: white;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.packages-table td {
+    font-size: 14px;
+    color: #333;
+}
+
+.packages-table tr:last-child td {
+    border-bottom: none;
+}
+
+.packages-table tr:hover {
+    background: #f5f5f5;
+}
+
+.status-badge {
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    display: inline-block;
+}
+
+.status-badge.putaway {
+    background: #e8f5e9;
+    color: #2e7d32;
+}
+
+.action-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    padding: 20px 0;
 }
 
 .process-steps {

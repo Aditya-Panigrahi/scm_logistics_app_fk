@@ -1,4 +1,4 @@
-.reconciliation-container {
+.manifest-container {
     min-height: 100vh;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     font-family: Roboto, Arial, sans-serif;
@@ -16,12 +16,70 @@
     margin: 0 auto;
     display: flex;
     align-items: center;
+    justify-content: space-between;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+}
+
+.header-right {
+    flex: 1;
 }
 
 .logo-section {
     display: flex;
     align-items: center;
-    gap: 8px;
+    justify-content: center;
+    flex: 1;
+}
+
+.logo-img {
+    height: 40px;
+    width: auto;
+}
+
+.back-btn {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.back-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.5);
+}
+
+.dashboard-btn {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.dashboard-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.5);
 }
 
 .logo {
@@ -43,7 +101,7 @@
 }
 
 /* Main Content */
-.reconciliation-content {
+.manifest-content {
     max-width: 900px;
     margin: 0 auto;
     padding: 40px 20px;
@@ -68,7 +126,7 @@
 }
 
 /* Main Card */
-.reconciliation-card {
+.manifest-card {
     background: white;
     border-radius: 2px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
@@ -78,14 +136,16 @@
 .card-header {
     background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);
     color: white;
-    padding: 30px;
+    padding: 50px 30px 40px 30px;
     text-align: center;
 }
 
 .card-header h2 {
-    font-size: 32px;
-    margin: 0 0 10px 0;
+    font-size: 28px;
+    margin: 0 0 15px 0;
     font-weight: 600;
+    line-height: 1.5;
+    padding-top: 5px;
 }
 
 .card-header p {
@@ -252,14 +312,19 @@
     background: #e8f5e9;
 }
 
+.summary-card.updated {
+    border-left-color: #2196f3;
+    background: #e3f2fd;
+}
+
 .summary-card.failed {
     border-left-color: #f44336;
     background: #ffebee;
 }
 
 .summary-card.total {
-    border-left-color: #2874f0;
-    background: #e3f2fd;
+    border-left-color: #9c27b0;
+    background: #f3e5f5;
 }
 
 .summary-icon {
@@ -373,7 +438,7 @@
 
 /* Responsive Design */
 @media (max-width: 768px) {
-    .reconciliation-content {
+    .manifest-content {
         padding: 20px 15px;
     }
 

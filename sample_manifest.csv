@@ -1,3 +1,11 @@
-tracking_id
-PKG-0001
-PKG-0002
+Tracking Id,Customer Name,Origin,Destination,Weight,Status
+TRK2025001,John Doe,Mumbai,Delhi,2.5,Ready
+TRK2025002,Jane Smith,Bangalore,Chennai,1.8,Ready
+TRK2025003,Robert Johnson,Pune,Hyderabad,3.2,Ready
+TRK2025004,Maria Garcia,Kolkata,Ahmedabad,1.5,Ready
+TRK2025005,David Lee,Surat,Jaipur,2.0,Ready
+TRK2025006,Sarah Williams,Lucknow,Kanpur,4.1,Ready
+TRK2025007,Michael Brown,Nagpur,Indore,1.2,Ready
+TRK2025008,Emily Davis,Patna,Bhopal,2.8,Ready
+TRK2025009,James Wilson,Vadodara,Coimbatore,3.5,Ready
+TRK2025010,Lisa Anderson,Ludhiana,Agra,1.9,Ready

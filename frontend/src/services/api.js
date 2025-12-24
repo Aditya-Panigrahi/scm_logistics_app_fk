@@ -30,4 +30,23 @@ export const inboundAPI = {
     getAuditLogs: () => api.get('/audit-logs/'),
 };
 
+export const outboundAPI = {
+    // Get packages in a bin (for pickup)
+    getBinPackages: (binId) => api.post('/outbound/get_bin_packages/', { bin_id: binId }),
+    
+    // Pickup a package (with verification)
+    pickupPackage: (trackingId, expectedTrackingId) => 
+        api.post('/outbound/pickup_package/', { 
+            tracking_id: trackingId, 
+            expected_tracking_id: expectedTrackingId 
+        }),
+    
+    // Dispatch all picked packages from a bin (with verification)
+    dispatchPackages: (binId, expectedBinId) => 
+        api.post('/outbound/dispatch_packages/', { 
+            bin_id: binId, 
+            expected_bin_id: expectedBinId 
+        }),
+};
+
 export default api;

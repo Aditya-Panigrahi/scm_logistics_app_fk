@@ -14,7 +14,7 @@ class ShipmentSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Shipment
-        fields = ['tracking_id', 'bin', 'bin_id', 'status', 'time_in', 'time_out', 'created_at', 'updated_at']
+        fields = ['tracking_id', 'bin', 'bin_id', 'status', 'manifested', 'time_in', 'time_out', 'created_at', 'updated_at']
         read_only_fields = ['created_at', 'updated_at', 'time_in']
 
 
@@ -39,25 +39,12 @@ class ScanBinSerializer(serializers.Serializer):
 class ScanPackageSerializer(serializers.Serializer):
     """Serializer for scanning package"""
     tracking_id = serializers.CharField(max_length=100)
-    
-    def validate_tracking_id(self, value):
-        if Shipment.objects.filter(tracking_id=value).exists():
-            raise serializers.ValidationError(f"Package {value} already exists in the system")
-        return value
 
 
 class AssignPackageSerializer(serializers.Serializer):
     """Serializer for assigning package to bin"""
     bin_id = serializers.CharField(max_length=100)
     tracking_id = serializers.CharField(max_length=100)
-    
-    def validate(self, data):
-        # Check if tracking ID already exists
-        if Shipment.objects.filter(tracking_id=data['tracking_id']).exists():
-            raise serializers.ValidationError(f"Package {data['tracking_id']} already assigned")
-        
-        # Allow any bin_id - will auto-create if doesn't exist
-        return data
 
 
 class ManifestUploadSerializer(serializers.Serializer):

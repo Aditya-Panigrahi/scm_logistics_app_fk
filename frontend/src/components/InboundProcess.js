@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { inboundAPI } from '../services/api';
 import BarcodeScanner from './BarcodeScanner';
@@ -9,125 +9,178 @@ const InboundProcess = () => {
     const [binId, setBinId] = useState('');
     const [trackingId, setTrackingId] = useState('');
     const [binValidated, setBinValidated] = useState(false);
-    const [packageValidated, setPackageValidated] = useState(false);
+    const [binLocked, setBinLocked] = useState(false);
+    const [binCapacity, setBinCapacity] = useState({ used: 0, total: 0 });
+    const [assignedPackages, setAssignedPackages] = useState([]);
     const [message, setMessage] = useState('');
-    const [messageType, setMessageType] = useState(''); // success, error, info
-    const [assignedShipment, setAssignedShipment] = useState(null);
+    const [messageType, setMessageType] = useState(''); // success, error, info, warning
     const [showBinScanner, setShowBinScanner] = useState(false);
     const [showPackageScanner, setShowPackageScanner] = useState(false);
+    const [isProcessing, setIsProcessing] = useState(false);
 
-    const handleScanBin = async (e) => {
-        e.preventDefault();
+    const handleAutoValidateBin = useCallback(async () => {
+        if (isProcessing) return;
+        
+        setIsProcessing(true);
         setMessage('');
         
         try {
             const response = await inboundAPI.scanBin(binId);
             if (response.data.success) {
                 setBinValidated(true);
-                setMessage(response.data.message);
+                setBinLocked(true);
+                setMessage(`✓ Bin ${binId} validated and locked. Ready to scan packages.`);
                 setMessageType('success');
+                
+                // Get bin capacity
+                if (response.data.bin) {
+                    setBinCapacity({ used: 0, total: response.data.bin.capacity });
+                }
             }
         } catch (error) {
             setMessage(error.response?.data?.errors?.bin_id?.[0] || 'Failed to validate bin');
             setMessageType('error');
             setBinValidated(false);
+        } finally {
+            setIsProcessing(false);
         }
-    };
+    }, [binId, isProcessing]);
 
-    const handleScanPackage = async (e) => {
-        e.preventDefault();
-        setMessage('');
-        
-        if (!binValidated) {
-            setMessage('Please scan and validate bin first');
+    // Auto-validate bin when binId changes (must be exactly 7 characters)
+    useEffect(() => {
+        if (binId && binId.length === 7 && !binLocked) {
+            const timer = setTimeout(() => {
+                handleAutoValidateBin();
+            }, 500); // Debounce 500ms
+            
+            return () => clearTimeout(timer);
+        }
+    }, [binId, binLocked, handleAutoValidateBin]);
+
+    const handleAssignPackage = async () => {
+        if (!binValidated || !trackingId) {
+            setMessage('Please enter a tracking ID');
             setMessageType('error');
             return;
         }
 
-        try {
-            const response = await inboundAPI.scanPackage(trackingId);
-            if (response.data.success) {
-                setPackageValidated(true);
-                setMessage(response.data.message);
-                setMessageType('success');
-            }
-        } catch (error) {
-            setMessage(error.response?.data?.errors?.tracking_id?.[0] || 'Failed to validate package');
-            setMessageType('error');
-            setPackageValidated(false);
-        }
-    };
-
-    const handleAssign = async () => {
+        if (isProcessing) return;
+        setIsProcessing(true);
         setMessage('');
-        
-        if (!binValidated || !packageValidated) {
-            setMessage('Please validate both bin and package first');
-            setMessageType('error');
-            return;
-        }
 
         try {
             const response = await inboundAPI.assignPackage(binId, trackingId);
             if (response.data.success) {
-                setAssignedShipment(response.data.shipment);
-                setMessage(response.data.message);
-                setMessageType('success');
+                const newPackage = {
+                    tracking_id: response.data.shipment.tracking_id,
+                    status: response.data.shipment.status,
+                    was_manifested: response.data.was_manifested,
+                    time: new Date().toLocaleTimeString()
+                };
                 
-                // Reset form
+                setAssignedPackages([...assignedPackages, newPackage]);
+                setBinCapacity({
+                    used: response.data.bin_capacity_used,
+                    total: response.data.bin_capacity_total
+                });
+                
+                // Check if bin is at capacity
+                if (response.data.bin_capacity_used >= response.data.bin_capacity_total) {
+                    setMessage(`✓ Package assigned! BIN FULL (${response.data.bin_capacity_used}/${response.data.bin_capacity_total})`);
+                    setMessageType('warning');
+                } else {
+                    setMessage(`✓ Package ${trackingId} assigned! (${response.data.bin_capacity_used}/${response.data.bin_capacity_total})`);
+                    setMessageType('success');
+                }
+                
+                // Clear tracking ID for next scan
+                setTrackingId('');
+                
+                // Focus back on tracking input
                 setTimeout(() => {
-                    resetForm();
-                }, 2000);
+                    document.getElementById('trackingId')?.focus();
+                }, 100);
             }
         } catch (error) {
-            setMessage(error.response?.data?.errors?.non_field_errors?.[0] || 'Failed to assign package');
-            setMessageType('error');
+            if (error.response?.data?.capacity_exceeded) {
+                setMessage(`⚠️ Bin ${binId} is at full capacity! Cannot assign more packages.`);
+                setMessageType('warning');
+            } else {
+                setMessage(error.response?.data?.errors?.bin_id?.[0] || error.response?.data?.errors?.non_field_errors?.[0] || 'Failed to assign package');
+                setMessageType('error');
+            }
+        } finally {
+            setIsProcessing(false);
         }
+    };
+
+    const handleTrackingKeyPress = (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            handleAssignPackage();
+        }
+    };
+
+    const handleUnlockBin = () => {
+        setBinId('');
+        setBinValidated(false);
+        setBinLocked(false);
+        setBinCapacity({ used: 0, total: 0 });
+        setAssignedPackages([]);
+        setMessage('');
+        setTrackingId('');
     };
 
     const resetForm = () => {
         setBinId('');
         setTrackingId('');
         setBinValidated(false);
-        setPackageValidated(false);
+        setBinLocked(false);
+        setBinCapacity({ used: 0, total: 0 });
+        setAssignedPackages([]);
         setMessage('');
         setMessageType('');
-        setAssignedShipment(null);
     };
 
     const handleBinScanSuccess = (decodedText) => {
         setBinId(decodedText.toUpperCase());
         setShowBinScanner(false);
-        setMessage('Bin ID scanned successfully. Click "Validate Bin" to proceed.');
-        setMessageType('info');
     };
 
     const handlePackageScanSuccess = (decodedText) => {
         setTrackingId(decodedText.toUpperCase());
         setShowPackageScanner(false);
-        setMessage('Tracking ID scanned successfully. Click "Validate Package" to proceed.');
-        setMessageType('info');
+        // Auto-assign after scanning
+        setTimeout(() => {
+            document.getElementById('assignBtn')?.click();
+        }, 200);
     };
 
     return (
         <div className="inbound-container">
             <div className="header">
                 <div className="header-content">
-                    <div className="logo-section">
+                    <div className="header-left">
                         <button className="back-btn" onClick={() => navigate('/')}>
                             ← Back
                         </button>
-                        <div className="logo">
-                            Flipkart
-                            <span className="logo-tagline">SCM</span>
-                        </div>
+                        <button className="dashboard-btn" onClick={() => navigate('/inventory-dashboard')}>
+                            📊 Dashboard
+                        </button>
                     </div>
-                    <div className="header-title">Logistics Management System</div>
+                    <div className="logo-section">
+                        <img 
+                            src="https://static-assets-web.flixcart.com/ekart-assets/assets/fonts/ekWhiteLogo.9be1302c8c55ee6342ddaa8e9a3e00aa.png" 
+                            alt="Ekart Logistics" 
+                            className="logo-img"
+                        />
+                    </div>
+                    <div className="header-right"></div>
                 </div>
             </div>
 
             <div className="content-wrapper">
-                <h1 className="page-title">Inbound Process</h1>
+                <h1 className="page-title">Inbound Process - Package Putaway</h1>
             
             {message && (
                 <div className={`message ${messageType}`}>
@@ -136,108 +189,130 @@ const InboundProcess = () => {
             )}
 
             <div className="process-steps">
-                {/* Step 1: Scan Bin */}
+                {/* Step 1: Scan/Enter Bin - Auto-validates */}
                 <div className={`step ${binValidated ? 'completed' : ''}`}>
-                    <h2>Step 1: Scan Bin</h2>
-                    <form onSubmit={handleScanBin}>
-                        <div className="form-group">
-                            <label htmlFor="binId">Bin ID:</label>
-                            <div className="input-wrapper">
-                                <input
-                                    type="text"
-                                    id="binId"
-                                    value={binId}
-                                    onChange={(e) => setBinId(e.target.value.toUpperCase())}
-                                    placeholder="Enter or scan Bin ID"
-                                    required
-                                    disabled={binValidated}
-                                />
+                    <h2>Step 1: Scan or Enter Bin ID</h2>
+                    <div className="form-group">
+                        <label htmlFor="binId">Bin ID:</label>
+                        <div className="input-wrapper">
+                            <input
+                                type="text"
+                                id="binId"
+                                value={binId}
+                                onChange={(e) => setBinId(e.target.value.toUpperCase())}
+                                placeholder="Enter Bin ID"
+                                required
+                                disabled={binLocked}
+                                autoFocus={!binLocked}
+                            />
+                            <button 
+                                type="button"
+                                className="camera-btn" 
+                                onClick={() => setShowBinScanner(true)}
+                                disabled={binLocked}
+                            >
+                                <span className="camera-icon">📷</span>
+                                Scan
+                            </button>
+                            {binLocked && (
                                 <button 
                                     type="button"
-                                    className="camera-btn" 
-                                    onClick={() => setShowBinScanner(true)}
-                                    disabled={binValidated}
+                                    className="unlock-btn" 
+                                    onClick={handleUnlockBin}
                                 >
-                                    <span className="camera-icon">📷</span>
-                                    Scan
+                                    🔓 Change Bin
                                 </button>
-                            </div>
+                            )}
                         </div>
-                        <button type="submit" disabled={binValidated}>
-                            {binValidated ? '✓ Bin Validated' : 'Validate Bin'}
-                        </button>
-                    </form>
-                </div>
-
-                {/* Step 2: Scan Package */}
-                <div className={`step ${packageValidated ? 'completed' : ''} ${!binValidated ? 'disabled' : ''}`}>
-                    <h2>Step 2: Scan Package</h2>
-                    <form onSubmit={handleScanPackage}>
-                        <div className="form-group">
-                            <label htmlFor="trackingId">Tracking ID:</label>
-                            <div className="input-wrapper">
-                                <input
-                                    type="text"
-                                    id="trackingId"
-                                    value={trackingId}
-                                    onChange={(e) => setTrackingId(e.target.value.toUpperCase())}
-                                    placeholder="Enter or scan Tracking ID"
-                                    required
-                                    disabled={!binValidated || packageValidated}
-                                />
-                                <button 
-                                    type="button"
-                                    className="camera-btn" 
-                                    onClick={() => setShowPackageScanner(true)}
-                                    disabled={!binValidated || packageValidated}
-                                >
-                                    <span className="camera-icon">📷</span>
-                                    Scan
-                                </button>
+                        {binValidated && (
+                            <div className="validation-status success">
+                                ✓ Bin locked and ready | Capacity: {binCapacity.used}/{binCapacity.total}
                             </div>
-                        </div>
-                        <button type="submit" disabled={!binValidated || packageValidated}>
-                            {packageValidated ? '✓ Package Validated' : 'Validate Package'}
-                        </button>
-                    </form>
-                </div>
-
-                {/* Step 3: Assign */}
-                <div className={`step ${!binValidated || !packageValidated ? 'disabled' : ''}`}>
-                    <h2>Step 3: Assign Package to Bin</h2>
-                    <div className="assignment-info">
-                        <p><strong>Bin ID:</strong> {binId || 'N/A'}</p>
-                        <p><strong>Tracking ID:</strong> {trackingId || 'N/A'}</p>
+                        )}
                     </div>
-                    <button 
-                        onClick={handleAssign} 
-                        disabled={!binValidated || !packageValidated}
-                        className="assign-btn"
-                    >
-                        Assign Package
-                    </button>
+                </div>
+
+                {/* Step 2: Scan Packages - Multiple allowed */}
+                <div className={`step ${!binValidated ? 'disabled' : ''}`}>
+                    <h2>Step 2: Scan or Enter Tracking IDs</h2>
+                    <div className="form-group">
+                        <label htmlFor="trackingId">Tracking ID:</label>
+                        <div className="input-wrapper">
+                            <input
+                                type="text"
+                                id="trackingId"
+                                value={trackingId}
+                                onChange={(e) => setTrackingId(e.target.value.toUpperCase())}
+                                onKeyPress={handleTrackingKeyPress}
+                                placeholder="Enter Tracking ID"
+                                required
+                                disabled={!binValidated || binCapacity.used >= binCapacity.total}
+                                autoFocus={binValidated}
+                            />
+                            <button 
+                                type="button"
+                                className="camera-btn" 
+                                onClick={() => setShowPackageScanner(true)}
+                                disabled={!binValidated || binCapacity.used >= binCapacity.total}
+                            >
+                                <span className="camera-icon">📷</span>
+                                Scan
+                            </button>
+                            <button 
+                                id="assignBtn"
+                                type="button"
+                                className="assign-btn-inline" 
+                                onClick={handleAssignPackage}
+                                disabled={!binValidated || !trackingId || binCapacity.used >= binCapacity.total}
+                            >
+                                ✓ Assign
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Assigned Packages List */}
+                    {assignedPackages.length > 0 && (
+                        <div className="assigned-packages-list">
+                            <h3>Assigned Packages ({assignedPackages.length})</h3>
+                            <div className="packages-table">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>#</th>
+                                            <th>Tracking ID</th>
+                                            <th>Status</th>
+                                            <th>Source</th>
+                                            <th>Time</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {assignedPackages.map((pkg, index) => (
+                                            <tr key={index}>
+                                                <td>{index + 1}</td>
+                                                <td>{pkg.tracking_id}</td>
+                                                <td><span className="status-badge putaway">{pkg.status}</span></td>
+                                                <td>{pkg.was_manifested ? '📋 Manifest' : '🆕 New'}</td>
+                                                <td>{pkg.time}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
 
-            {assignedShipment && (
-                <div className="success-panel">
-                    <h3>✓ Assignment Successful!</h3>
-                    <div className="shipment-details">
-                        <p><strong>Tracking ID:</strong> {assignedShipment.tracking_id}</p>
-                        <p><strong>Bin ID:</strong> {assignedShipment.bin_id}</p>
-                        <p><strong>Status:</strong> {assignedShipment.status}</p>
-                        <p><strong>Time In:</strong> {new Date(assignedShipment.time_in).toLocaleString()}</p>
-                    </div>
-                </div>
-            )}
-
-            <button onClick={resetForm} className="reset-btn">
-                Start New Assignment
-            </button>
+            <div className="action-buttons">
+                <button onClick={resetForm} className="reset-btn">
+                    🔄 Start New Bin
+                </button>
+            </div>
             </div>
 
             {showBinScanner && (
                 <BarcodeScanner 
+                    key="bin-scanner"
                     onScanSuccess={handleBinScanSuccess}
                     onClose={() => setShowBinScanner(false)}
                     scannerType="Bin ID"
@@ -246,6 +321,7 @@ const InboundProcess = () => {
 
             {showPackageScanner && (
                 <BarcodeScanner 
+                    key="package-scanner"
                     onScanSuccess={handlePackageScanSuccess}
                     onClose={() => setShowPackageScanner(false)}
                     scannerType="Tracking ID"
