@@ -146,7 +146,7 @@ const Home = () => {
 
                 {/* Footer */}
                 <div className="home-footer">
-                    <p>© 2025 Flipkart SCM Logistics. Built with ❤️ for efficient warehouse management.</p>
+                    <p>© 2025 Flipkart SCM Logistics. Built by <b><u>Aditya</u></b>.</p>
                 </div>
             </div>
         </div>

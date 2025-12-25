@@ -266,19 +266,102 @@ const OutboundProcess = () => {
     };
 
     // Scanner handlers
-    const handleBinScan = (scannedValue) => {
-        setBinId(scannedValue.toUpperCase());
+    const handleBinScan = async (scannedValue) => {
+        const scannedBinId = scannedValue.toUpperCase();
+        setBinId(scannedBinId);
         setShowBinScanner(false);
+        
+        // Auto-load packages after scan
+        setLoading(true);
+        setError(null);
+        setMessage(null);
+
+        try {
+            const response = await api.post('/outbound/get_bin_packages/', {
+                bin_id: scannedBinId
+            });
+
+            if (response.data.success) {
+                setBinInfo(response.data.bin);
+                setPackages(response.data.packages);
+                setMessage(`Loaded ${response.data.package_count} packages from bin ${scannedBinId}`);
+            }
+        } catch (error) {
+            console.error('Load bin error:', error);
+            setError(error.response?.data?.errors?.bin_id?.[0] || 'Failed to load bin packages');
+            setPackages([]);
+            setBinInfo(null);
+        } finally {
+            setLoading(false);
+        }
     };
 
-    const handlePickupScan = (scannedValue) => {
-        setScannedTrackingId(scannedValue.toUpperCase());
+    const handlePickupScan = async (scannedValue) => {
+        const scannedId = scannedValue.toUpperCase();
+        setScannedTrackingId(scannedId);
         setShowPickupScanner(false);
+        
+        // Auto-confirm pickup after scan
+        try {
+            const response = await api.post('/outbound/pickup_package/', {
+                tracking_id: scannedId,
+                expected_tracking_id: currentPickupPackage.tracking_id
+            });
+
+            if (response.data.success) {
+                // Update package status in the list
+                setPackages(packages.map(pkg => 
+                    pkg.tracking_id === currentPickupPackage.tracking_id
+                        ? { ...pkg, status: 'picked' }
+                        : pkg
+                ));
+                setShowPickupModal(false);
+                setMessage(`✓ Package ${currentPickupPackage.tracking_id} picked successfully`);
+            }
+        } catch (error) {
+            console.error('Pickup error:', error);
+            if (error.response?.data?.mismatch) {
+                setPickupError('❌ Tracking ID mismatch! Please scan the correct package.');
+            } else {
+                setPickupError(error.response?.data?.errors?.tracking_id?.[0] || 'Failed to pickup package');
+            }
+        }
     };
 
-    const handleDispatchScan = (scannedValue) => {
-        setScannedDispatchBinId(scannedValue.toUpperCase());
+    const handleDispatchScan = async (scannedValue) => {
+        const scannedId = scannedValue.toUpperCase();
+        setScannedDispatchBinId(scannedId);
         setShowDispatchScanner(false);
+        
+        // Auto-confirm dispatch after scan
+        try {
+            const response = await api.post('/outbound/dispatch_packages/', {
+                bin_id: scannedId,
+                expected_bin_id: binId.trim().toUpperCase()
+            });
+
+            if (response.data.success) {
+                setShowDispatchModal(false);
+                setMessage(`✓ Successfully dispatched ${response.data.dispatched_count} packages from bin ${binId}`);
+                
+                // Remove dispatched packages from list
+                setPackages(packages.filter(pkg => pkg.status !== 'picked'));
+                
+                // If all packages dispatched, reset
+                if (packages.filter(pkg => pkg.status !== 'picked').length === 0) {
+                    setTimeout(() => {
+                        handleReset();
+                    }, 2000);
+                }
+            }
+        } catch (error) {
+            console.error('Dispatch error:', error);
+            if (error.response?.data?.mismatch) {
+                setDispatchError('❌ Bin ID mismatch! Please scan the correct bin.');
+            } else {
+                setDispatchError(error.response?.data?.errors?.bin_id?.[0] || 'Failed to dispatch packages');
+            }
+        }
     };
 
     const pickedCount = packages.filter(pkg => pkg.status === 'picked').length;
@@ -345,6 +428,11 @@ const OutboundProcess = () => {
                                     placeholder="Enter Bin ID (e.g., L1R1B01)"
                                     value={binId}
                                     onChange={(e) => setBinId(e.target.value.toUpperCase())}
+                                    onKeyPress={(e) => {
+                                        if (e.key === 'Enter' && binId.trim()) {
+                                            handleLoadBin();
+                                        }
+                                    }}
                                     disabled={loading || packages.length > 0}
                                 />
                                 <button 
@@ -593,6 +681,11 @@ const OutboundProcess = () => {
                                     placeholder="Scan or enter Tracking ID"
                                     value={scannedTrackingId}
                                     onChange={(e) => setScannedTrackingId(e.target.value.toUpperCase())}
+                                    onKeyPress={(e) => {
+                                        if (e.key === 'Enter' && scannedTrackingId.trim()) {
+                                            handleConfirmPickup();
+                                        }
+                                    }}
                                     autoFocus
                                 />
                                 <button 
@@ -647,6 +740,11 @@ const OutboundProcess = () => {
                                     placeholder="Scan or enter Bin ID"
                                     value={scannedDispatchBinId}
                                     onChange={(e) => setScannedDispatchBinId(e.target.value.toUpperCase())}
+                                    onKeyPress={(e) => {
+                                        if (e.key === 'Enter' && scannedDispatchBinId.trim()) {
+                                            handleConfirmDispatch();
+                                        }
+                                    }}
                                     autoFocus
                                 />
                                 <button 

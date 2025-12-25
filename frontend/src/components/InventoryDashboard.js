@@ -58,8 +58,14 @@ const InventoryDashboard = () => {
         const totalBins = binsArray.length;
         const totalPackages = shipmentsArray.length;
         
-        const binsInUse = binsArray.filter(bin => bin.status === 'occupied').length;
-        const availableBins = binsArray.filter(bin => bin.status === 'available').length;
+        // Calculate bins in use based on actual packages assigned to them
+        const binsWithPackages = new Set(
+            shipmentsArray
+                .filter(s => s.bin !== null && ['manifested', 'putaway', 'picked'].includes(s.status))
+                .map(s => s.bin)
+        );
+        const binsInUse = binsWithPackages.size;
+        const availableBins = totalBins - binsInUse;
         
         const totalCapacity = binsArray.reduce((sum, bin) => sum + (bin.capacity || 0), 0);
         const usedCapacity = shipmentsArray.filter(s => s.bin !== null && 
@@ -221,7 +227,7 @@ const InventoryDashboard = () => {
                                         <div className="stat-icon">✅</div>
                                         <div className="stat-info">
                                             <h3>{stats.availableBins}</h3>
-                                            <p>Available Bins</p>
+                                            <p>Empty Bins</p>
                                         </div>
                                     </div>
                                     
