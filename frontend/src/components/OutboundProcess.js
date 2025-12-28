@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import './OutboundProcess.css';
 import BarcodeScanner from './BarcodeScanner';
 import api from '../services/api';
 
 const OutboundProcess = () => {
     const navigate = useNavigate();
+    const { user, selectedWarehouse } = useAuth();
     
     // Tab state
     const [activeTab, setActiveTab] = useState('bin'); // 'bin' or 'file'
@@ -44,6 +46,19 @@ const OutboundProcess = () => {
     const [showDispatchScanner, setShowDispatchScanner] = useState(false);
     const [fileDispatchError, setFileDispatchError] = useState(null);
     const [showFileDispatchScanner, setShowFileDispatchScanner] = useState(false);
+
+    // Reset state when warehouse changes
+    useEffect(() => {
+        setBinId('');
+        setPackages([]);
+        setBinInfo(null);
+        setError(null);
+        setMessage(null);
+        setUploadedFile(null);
+        setFilePackages([]);
+        setFileError(null);
+        setFileMessage(null);
+    }, [selectedWarehouse]);
 
     const handleBack = () => {
         navigate('/');
@@ -396,7 +411,7 @@ const OutboundProcess = () => {
                 <div className="outbound-card">
                     <div className="card-header">
                         <h2>🚚 Outbound Process - Package Pickup</h2>
-                        <p>Pick up packages by bin or from file</p>
+                        <p>Pick up packages by bin {user?.role !== 'OPERATOR' && 'or from file'}</p>
                     </div>
 
                     {/* Tabs */}
@@ -407,12 +422,14 @@ const OutboundProcess = () => {
                         >
                             📦 Pickup by Bin
                         </button>
-                        <button 
-                            className={`tab-button ${activeTab === 'file' ? 'active' : ''}`}
-                            onClick={() => setActiveTab('file')}
-                        >
-                            📄 Pickup by File
-                        </button>
+                        {user?.role !== 'OPERATOR' && (
+                            <button 
+                                className={`tab-button ${activeTab === 'file' ? 'active' : ''}`}
+                                onClick={() => setActiveTab('file')}
+                            >
+                                📄 Pickup by File
+                            </button>
+                        )}
                     </div>
 
                     <div className="card-body">

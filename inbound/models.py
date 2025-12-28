@@ -1,5 +1,6 @@
 from django.db import models
 from django.utils import timezone
+from django.conf import settings
 
 
 class Bin(models.Model):
@@ -11,6 +12,7 @@ class Bin(models.Model):
     ]
     
     bin_id = models.CharField(max_length=100, unique=True, primary_key=True)
+    warehouse = models.ForeignKey('accounts.Warehouse', on_delete=models.CASCADE, related_name='bins', null=True, blank=True)
     location = models.CharField(max_length=255, blank=True, null=True)
     capacity = models.IntegerField(default=1)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='available')
@@ -39,6 +41,7 @@ class Shipment(models.Model):
     ]
     
     tracking_id = models.CharField(max_length=100, unique=True, primary_key=True)
+    warehouse = models.ForeignKey('accounts.Warehouse', on_delete=models.CASCADE, related_name='shipments', null=True, blank=True)
     bin = models.ForeignKey(Bin, on_delete=models.SET_NULL, null=True, blank=True, related_name='shipments')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='unregistered')
     manifested = models.BooleanField(default=False)
@@ -66,7 +69,8 @@ class AuditLog(models.Model):
     
     action = models.CharField(max_length=50, choices=ACTION_CHOICES)
     shipment = models.ForeignKey(Shipment, on_delete=models.CASCADE, related_name='audit_logs')
-    user = models.CharField(max_length=100, default='system')
+    warehouse = models.ForeignKey('accounts.Warehouse', on_delete=models.CASCADE, related_name='audit_logs', null=True, blank=True)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='audit_logs')
     timestamp = models.DateTimeField(auto_now_add=True)
     details = models.TextField(blank=True, null=True)
     

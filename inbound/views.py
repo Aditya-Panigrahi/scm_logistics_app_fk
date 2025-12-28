@@ -2,7 +2,12 @@ from django.shortcuts import render
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
 from django.utils import timezone
+from accounts.permissions import (
+    IsOperationHeadOrAbove, CanAccessInbound, 
+    CanAccessOutbound, CanAccessManifest, CanAccessInventoryDashboard
+)
 from .models import Bin, Shipment, AuditLog
 from .serializers import (
     BinSerializer, ShipmentSerializer, AuditLogSerializer,
@@ -16,22 +21,71 @@ class BinViewSet(viewsets.ModelViewSet):
     """ViewSet for managing bins"""
     queryset = Bin.objects.all()
     serializer_class = BinSerializer
+    permission_classes = [IsAuthenticated, IsOperationHeadOrAbove]
+    
+    def get_queryset(self):
+        """Filter bins by user's warehouse or warehouse_id query param"""
+        user = self.request.user
+        queryset = super().get_queryset()
+        
+        if user.role == 'SUPERADMIN':
+            # Check if warehouse_id is provided in query params
+            warehouse_id = self.request.query_params.get('warehouse_id')
+            if warehouse_id:
+                return queryset.filter(warehouse_id=warehouse_id)
+            return queryset
+        elif user.warehouse:
+            return queryset.filter(warehouse=user.warehouse)
+        return queryset.none()
 
 
 class ShipmentViewSet(viewsets.ModelViewSet):
     """ViewSet for managing shipments"""
     queryset = Shipment.objects.all()
     serializer_class = ShipmentSerializer
+    permission_classes = [IsAuthenticated, IsOperationHeadOrAbove]
+    
+    def get_queryset(self):
+        """Filter shipments by user's warehouse or warehouse_id query param"""
+        user = self.request.user
+        queryset = super().get_queryset()
+        
+        if user.role == 'SUPERADMIN':
+            # Check if warehouse_id is provided in query params
+            warehouse_id = self.request.query_params.get('warehouse_id')
+            if warehouse_id:
+                return queryset.filter(warehouse_id=warehouse_id)
+            return queryset
+        elif user.warehouse:
+            return queryset.filter(warehouse=user.warehouse)
+        return queryset.none()
 
 
 class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
     """ViewSet for viewing audit logs"""
     queryset = AuditLog.objects.all()
     serializer_class = AuditLogSerializer
+    permission_classes = [IsAuthenticated, CanAccessInventoryDashboard]
+    
+    def get_queryset(self):
+        """Filter audit logs by user's warehouse or warehouse_id query param"""
+        user = self.request.user
+        queryset = super().get_queryset()
+        
+        if user.role == 'SUPERADMIN':
+            # Check if warehouse_id is provided in query params
+            warehouse_id = self.request.query_params.get('warehouse_id')
+            if warehouse_id:
+                return queryset.filter(warehouse_id=warehouse_id)
+            return queryset
+        elif user.warehouse:
+            return queryset.filter(warehouse=user.warehouse)
+        return queryset.none()
 
 
 class InboundProcessViewSet(viewsets.ViewSet):
     """ViewSet for handling inbound process operations"""
+    permission_classes = [IsAuthenticated, CanAccessInbound]
     
     @action(detail=False, methods=['post'])
     def scan_bin(self, request):
@@ -39,16 +93,25 @@ class InboundProcessViewSet(viewsets.ViewSet):
         serializer = ScanBinSerializer(data=request.data)
         if serializer.is_valid():
             bin_id = serializer.validated_data['bin_id']
+            warehouse = request.user.warehouse
             
             # Get or create bin
             bin_obj, created = Bin.objects.get_or_create(
                 bin_id=bin_id,
                 defaults={
+                    'warehouse': warehouse,
                     'location': 'Auto-created',
                     'capacity': 1,
                     'status': 'available'
                 }
             )
+            
+            # Check if bin belongs to user's warehouse
+            if bin_obj.warehouse != warehouse:
+                return Response({
+                    'success': False,
+                    'errors': {'bin_id': [f'Bin {bin_id} belongs to a different warehouse.']}
+                }, status=status.HTTP_403_FORBIDDEN)
             
             # Check if bin is available
             if bin_obj.status != 'available':
@@ -94,9 +157,17 @@ class InboundProcessViewSet(viewsets.ViewSet):
         if serializer.is_valid():
             bin_id = serializer.validated_data['bin_id']
             tracking_id = serializer.validated_data['tracking_id']
+            warehouse = request.user.warehouse
             
             # Get bin object
             bin_obj = Bin.objects.get(bin_id=bin_id)
+            
+            # Check if bin belongs to user's warehouse
+            if bin_obj.warehouse != warehouse:
+                return Response({
+                    'success': False,
+                    'errors': {'bin_id': [f'Bin {bin_id} belongs to a different warehouse.']}
+                }, status=status.HTTP_403_FORBIDDEN)
             
             # Check bin capacity
             current_shipments_count = Shipment.objects.filter(bin=bin_obj, status='putaway').count()
@@ -112,6 +183,7 @@ class InboundProcessViewSet(viewsets.ViewSet):
                 shipment = Shipment.objects.get(tracking_id=tracking_id)
                 # Existing shipment - update it
                 shipment.bin = bin_obj
+                shipment.warehouse = warehouse
                 shipment.status = 'putaway'
                 shipment.save()
                 
@@ -121,6 +193,7 @@ class InboundProcessViewSet(viewsets.ViewSet):
                 shipment = Shipment.objects.create(
                     tracking_id=tracking_id,
                     bin=bin_obj,
+                    warehouse=warehouse,
                     status='putaway',
                     manifested=False,
                     time_in=timezone.now()
@@ -136,7 +209,8 @@ class InboundProcessViewSet(viewsets.ViewSet):
             AuditLog.objects.create(
                 action='assigned',
                 shipment=shipment,
-                user=request.user.username if request.user.is_authenticated else 'anonymous',
+                warehouse=warehouse,
+                user=request.user,
                 details=f'Package {tracking_id} assigned to bin {bin_id}'
             )
             
@@ -227,6 +301,7 @@ class InboundProcessViewSet(viewsets.ViewSet):
 
 class OutboundProcessViewSet(viewsets.ViewSet):
     """ViewSet for handling outbound process operations"""
+    permission_classes = [IsAuthenticated, CanAccessOutbound]
     
     @action(detail=False, methods=['post'])
     def search_package(self, request):

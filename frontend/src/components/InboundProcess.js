@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import { inboundAPI } from '../services/api';
 import BarcodeScanner from './BarcodeScanner';
 import './InboundProcess.css';
 
 const InboundProcess = () => {
     const navigate = useNavigate();
+    const { selectedWarehouse } = useAuth();
     const [binId, setBinId] = useState('');
     const [trackingId, setTrackingId] = useState('');
     const [binValidated, setBinValidated] = useState(false);
@@ -17,6 +19,18 @@ const InboundProcess = () => {
     const [showBinScanner, setShowBinScanner] = useState(false);
     const [showPackageScanner, setShowPackageScanner] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
+
+    // Reset state when warehouse changes
+    useEffect(() => {
+        setBinId('');
+        setTrackingId('');
+        setBinValidated(false);
+        setBinLocked(false);
+        setBinCapacity({ used: 0, total: 0 });
+        setAssignedPackages([]);
+        setMessage('');
+        setMessageType('');
+    }, [selectedWarehouse]);
 
     const handleAutoValidateBin = useCallback(async () => {
         if (isProcessing) return;

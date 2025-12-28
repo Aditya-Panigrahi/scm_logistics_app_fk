@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import './InventoryDashboard.css';
 import { inboundAPI } from '../services/api';
 
 const InventoryDashboard = () => {
     const navigate = useNavigate();
+    const { selectedWarehouse } = useAuth();
     
     // State for data
     const [bins, setBins] = useState([]);
@@ -18,10 +20,12 @@ const InventoryDashboard = () => {
     const [statusFilter, setStatusFilter] = useState('all');
     const [searchQuery, setSearchQuery] = useState('');
 
-    // Load data on component mount
+    // Load data on component mount and when warehouse changes
     useEffect(() => {
-        loadDashboardData();
-    }, []);
+        if (selectedWarehouse) {
+            loadDashboardData();
+        }
+    }, [selectedWarehouse]);
 
     const loadDashboardData = async () => {
         setLoading(true);
