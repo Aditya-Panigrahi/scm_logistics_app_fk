@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import './OutboundProcess.css';
 import BarcodeScanner from './BarcodeScanner';
-import api from '../services/api';
+import api, { outboundAPI } from '../services/api';
 
 const OutboundProcess = () => {
     const navigate = useNavigate();
@@ -31,8 +31,6 @@ const OutboundProcess = () => {
     const [showPickupModal, setShowPickupModal] = useState(false);
     const [showDispatchModal, setShowDispatchModal] = useState(false);
     const [showBinScanner, setShowBinScanner] = useState(false);
-    const [showFileDispatchModal, setShowFileDispatchModal] = useState(false);
-    const [currentFilePackage, setCurrentFilePackage] = useState(null);
     
     // Current package being picked up
     const [currentPickupPackage, setCurrentPickupPackage] = useState(null);
@@ -44,8 +42,12 @@ const OutboundProcess = () => {
     const [scannedDispatchBinId, setScannedDispatchBinId] = useState('');
     const [dispatchError, setDispatchError] = useState(null);
     const [showDispatchScanner, setShowDispatchScanner] = useState(false);
-    const [fileDispatchError, setFileDispatchError] = useState(null);
-    const [showFileDispatchScanner, setShowFileDispatchScanner] = useState(false);
+    
+    // Operator assignment state
+    const [operators, setOperators] = useState([]);
+    const [showAssignModal, setShowAssignModal] = useState(false);
+    const [selectedOperator, setSelectedOperator] = useState(null);
+    const [assignmentLoading, setAssignmentLoading] = useState(false);
 
     // Reset state when warehouse changes
     useEffect(() => {
@@ -58,7 +60,20 @@ const OutboundProcess = () => {
         setFilePackages([]);
         setFileError(null);
         setFileMessage(null);
+        loadOperators();
     }, [selectedWarehouse]);
+    
+    // Load operators for the warehouse
+    const loadOperators = async () => {
+        try {
+            const response = await outboundAPI.getWarehouseOperators();
+            if (response.data.success) {
+                setOperators(response.data.operators);
+            }
+        } catch (error) {
+            console.error('Failed to load operators:', error);
+        }
+    };
 
     const handleBack = () => {
         navigate('/');
@@ -83,7 +98,7 @@ const OutboundProcess = () => {
             if (response.data.success) {
                 setBinInfo(response.data.bin);
                 setPackages(response.data.packages);
-                setMessage(`Loaded ${response.data.package_count} packages from bin ${binId}`);
+                setMessage(`Loaded ${response.data.package_count} shipments from bin ${binId}`);
             }
         } catch (error) {
             console.error('Load bin error:', error);
@@ -127,14 +142,14 @@ const OutboundProcess = () => {
                         : pkg
                 ));
                 setShowPickupModal(false);
-                setMessage(`✓ Package ${currentPickupPackage.tracking_id} picked successfully`);
+                setMessage(`✓ Shipment ${currentPickupPackage.tracking_id} picked successfully`);
             }
         } catch (error) {
             console.error('Pickup error:', error);
             if (error.response?.data?.mismatch) {
-                setPickupError('❌ Tracking ID mismatch! Please scan the correct package.');
+                setPickupError('❌ Tracking ID mismatch! Please scan the correct shipment.');
             } else {
-                setPickupError(error.response?.data?.errors?.tracking_id?.[0] || 'Failed to pickup package');
+                setPickupError(error.response?.data?.errors?.tracking_id?.[0] || 'Failed to pickup shipment');
             }
         }
     };
@@ -143,7 +158,7 @@ const OutboundProcess = () => {
     const handleOpenDispatchModal = () => {
         const pickedCount = packages.filter(pkg => pkg.status === 'picked').length;
         if (pickedCount === 0) {
-            setError('No packages picked. Please pick up packages before dispatching.');
+            setError('No shipments picked. Please pick up shipments before dispatching.');
             return;
         }
         setScannedDispatchBinId('');
@@ -166,7 +181,7 @@ const OutboundProcess = () => {
 
             if (response.data.success) {
                 setShowDispatchModal(false);
-                setMessage(`✓ Successfully dispatched ${response.data.dispatched_count} packages from bin ${binId}`);
+                setMessage(`✓ Successfully dispatched ${response.data.dispatched_count} shipments from bin ${binId}`);
                 
                 // Remove dispatched packages from list
                 setPackages(packages.filter(pkg => pkg.status !== 'picked'));
@@ -183,7 +198,7 @@ const OutboundProcess = () => {
             if (error.response?.data?.mismatch) {
                 setDispatchError('❌ Bin ID mismatch! Please scan the correct bin.');
             } else {
-                setDispatchError(error.response?.data?.errors?.bin_id?.[0] || 'Failed to dispatch packages');
+                setDispatchError(error.response?.data?.errors?.bin_id?.[0] || 'Failed to dispatch shipments');
             }
         }
     };
@@ -221,7 +236,7 @@ const OutboundProcess = () => {
                     ...pkg,
                     dispatched: false
                 })));
-                setFileMessage(`✓ Processed ${response.data.packages.length} packages from file`);
+                setFileMessage(`✓ Processed ${response.data.packages.length} shipments from file`);
                 setUploadedFile(file);
             }
         } catch (error) {
@@ -232,52 +247,47 @@ const OutboundProcess = () => {
         }
     };
 
-    const handleOpenFileDispatchModal = (pkg) => {
-        if (pkg.dispatched) return;
-        setCurrentFilePackage(pkg);
-        setScannedTrackingId('');
-        setFileDispatchError(null);
-        setShowFileDispatchModal(true);
-    };
-
-    const handleConfirmFileDispatch = async () => {
-        if (!scannedTrackingId.trim()) {
-            setFileDispatchError('Please scan or enter the tracking ID');
-            return;
-        }
-
-        if (scannedTrackingId.trim().toUpperCase() !== currentFilePackage.tracking_id) {
-            setFileDispatchError('❌ Tracking ID mismatch! Please scan the correct package.');
-            return;
-        }
-
-        try {
-            const response = await api.post('/outbound/dispatch_single_package/', {
-                tracking_id: currentFilePackage.tracking_id
-            });
-
-            if (response.data.success) {
-                // Update package status
-                setFilePackages(filePackages.map(pkg => 
-                    pkg.tracking_id === currentFilePackage.tracking_id
-                        ? { ...pkg, dispatched: true }
-                        : pkg
-                ));
-                setShowFileDispatchModal(false);
-                setScannedTrackingId('');
-            }
-        } catch (error) {
-            console.error('Dispatch error:', error);
-            setFileDispatchError(error.response?.data?.error || 'Failed to dispatch package');
-        }
-    };
-
     const handleFileReset = () => {
         setUploadedFile(null);
         setFilePackages([]);
         setFileError(null);
         setFileMessage(null);
         document.getElementById('fileInput').value = '';
+    };
+    
+    // Handle operator assignment
+    const handleOpenAssignModal = () => {
+        setShowAssignModal(true);
+        setSelectedOperator(null);
+    };
+    
+    const handleAssignToOperator = async () => {
+        if (!selectedOperator) {
+            alert('Please select an operator');
+            return;
+        }
+        
+        setAssignmentLoading(true);
+        try {
+            const trackingIds = filePackages.map(pkg => pkg.tracking_id);
+            const response = await outboundAPI.assignToOperator(trackingIds, selectedOperator);
+            
+            if (response.data.success) {
+                setFileMessage(`✓ Successfully assigned ${response.data.assigned_count} shipments to ${response.data.operator.name}`);
+                setShowAssignModal(false);
+                // Update packages to show they're assigned
+                setFilePackages(filePackages.map(pkg => ({
+                    ...pkg,
+                    assigned: true,
+                    assigned_operator: response.data.operator
+                })));
+            }
+        } catch (error) {
+            console.error('Assignment error:', error);
+            setFileError(error.response?.data?.error || 'Failed to assign shipments to operator');
+        } finally {
+            setAssignmentLoading(false);
+        }
     };
 
     // Scanner handlers
@@ -299,11 +309,11 @@ const OutboundProcess = () => {
             if (response.data.success) {
                 setBinInfo(response.data.bin);
                 setPackages(response.data.packages);
-                setMessage(`Loaded ${response.data.package_count} packages from bin ${scannedBinId}`);
+                setMessage(`Loaded ${response.data.package_count} shipments from bin ${scannedBinId}`);
             }
         } catch (error) {
             console.error('Load bin error:', error);
-            setError(error.response?.data?.errors?.bin_id?.[0] || 'Failed to load bin packages');
+            setError(error.response?.data?.errors?.bin_id?.[0] || 'Failed to load bin shipments');
             setPackages([]);
             setBinInfo(null);
         } finally {
@@ -331,14 +341,14 @@ const OutboundProcess = () => {
                         : pkg
                 ));
                 setShowPickupModal(false);
-                setMessage(`✓ Package ${currentPickupPackage.tracking_id} picked successfully`);
+                setMessage(`✓ Shipment ${currentPickupPackage.tracking_id} picked successfully`);
             }
         } catch (error) {
             console.error('Pickup error:', error);
             if (error.response?.data?.mismatch) {
-                setPickupError('❌ Tracking ID mismatch! Please scan the correct package.');
+                setPickupError('❌ Tracking ID mismatch! Please scan the correct shipment.');
             } else {
-                setPickupError(error.response?.data?.errors?.tracking_id?.[0] || 'Failed to pickup package');
+                setPickupError(error.response?.data?.errors?.tracking_id?.[0] || 'Failed to pickup shipment');
             }
         }
     };
@@ -391,9 +401,11 @@ const OutboundProcess = () => {
                         <button className="back-btn" onClick={handleBack}>
                             ← Back
                         </button>
-                        <button className="dashboard-btn" onClick={() => navigate('/inventory-dashboard')}>
-                            📊 Dashboard
-                        </button>
+                        {user?.role !== 'OPERATOR' && (
+                            <button className="dashboard-btn" onClick={() => navigate('/inventory-dashboard')}>
+                                📊 Dashboard
+                            </button>
+                        )}
                     </div>
                     <div className="logo-section">
                         <img 
@@ -410,8 +422,8 @@ const OutboundProcess = () => {
             <div className="outbound-content">
                 <div className="outbound-card">
                     <div className="card-header">
-                        <h2>🚚 Outbound Process - Package Pickup</h2>
-                        <p>Pick up packages by bin {user?.role !== 'OPERATOR' && 'or from file'}</p>
+                        <h2>🚚 Outbound Process - Shipment Pickup</h2>
+                        <p>Pick up shipments by bin {user?.role !== 'OPERATOR' && 'or from file'}</p>
                     </div>
 
                     {/* Tabs */}
@@ -464,7 +476,7 @@ const OutboundProcess = () => {
                                     onClick={handleLoadBin}
                                     disabled={loading || packages.length > 0}
                                 >
-                                    {loading ? '⏳ Loading...' : '📦 Load Packages'}
+                                    {loading ? '⏳ Loading...' : '📦 Load Shipments'}
                                 </button>
                             </div>
                         </div>
@@ -489,8 +501,7 @@ const OutboundProcess = () => {
                                     <div className="bin-details">
                                         <h3>📍 Bin: {binInfo.bin_id}</h3>
                                         <p>Location: {binInfo.location}</p>
-                                        <p>Progress: {pickedCount}/{totalCount} packages picked</p>
-                                    </div>
+                                        <p>Progress: {pickedCount}/{totalCount} shipments picked</p>\n                                    </div>
                                     <div className="action-buttons">
                                         <button 
                                             className="dispatch-button"
@@ -523,7 +534,13 @@ const OutboundProcess = () => {
                                             {packages.map((pkg, index) => (
                                                 <tr 
                                                     key={pkg.tracking_id}
-                                                    className={pkg.status === 'picked' ? 'picked-row' : ''}
+                                                    className={`
+                                                        ${pkg.status === 'picked' ? 'picked-row' : ''}
+                                                        ${pkg.assigned_operator && pkg.assigned_operator.id !== user?.id ? 'assigned-to-other' : ''}
+                                                    `.trim()}
+                                                    title={pkg.assigned_operator && pkg.assigned_operator.id !== user?.id 
+                                                        ? `Assigned to ${pkg.assigned_operator.name || pkg.assigned_operator.username}`
+                                                        : ''}
                                                 >
                                                     <td>{index + 1}</td>
                                                     <td className="tracking-cell">{pkg.tracking_id}</td>
@@ -532,10 +549,23 @@ const OutboundProcess = () => {
                                                         <span className={`status-badge ${pkg.status}`}>
                                                             {pkg.status === 'picked' ? '✓ Picked' : pkg.status}
                                                         </span>
+                                                        {pkg.assigned_operator && (
+                                                            <span className="operator-badge">
+                                                                👤 {pkg.assigned_operator.username}
+                                                            </span>
+                                                        )}
                                                     </td>
                                                     <td>
                                                         {pkg.status === 'picked' ? (
                                                             <span className="picked-indicator">✓ Ready</span>
+                                                        ) : pkg.assigned_operator && pkg.assigned_operator.id !== user?.id ? (
+                                                            <button 
+                                                                className="pickup-button disabled"
+                                                                disabled
+                                                                title={`Assigned to ${pkg.assigned_operator.name || pkg.assigned_operator.username}`}
+                                                            >
+                                                                🔒 Restricted
+                                                            </button>
                                                         ) : (
                                                             <button 
                                                                 className="pickup-button"
@@ -555,7 +585,7 @@ const OutboundProcess = () => {
 
                         {binInfo && packages.length === 0 && (
                             <div className="empty-bin-message">
-                                <p>No packages found in this bin</p>
+                                <p>No shipments found in this bin</p>
                                 <button className="reset-button" onClick={handleReset}>
                                     Try Another Bin
                                 </button>
@@ -620,9 +650,19 @@ const OutboundProcess = () => {
                             <div className="packages-section">
                                 <div className="file-packages-header">
                                     <h3>📋 Picklist Packages</h3>
-                                    <p>
-                                        {filePackages.filter(pkg => pkg.dispatched).length} / {filePackages.length} dispatched
-                                    </p>
+                                    <div className="header-actions">
+                                        <p>
+                                            {filePackages.filter(pkg => pkg.assigned).length} / {filePackages.length} assigned
+                                        </p>
+                                        {filePackages.some(pkg => !pkg.assigned) && (
+                                            <button 
+                                                className="assign-operator-button"
+                                                onClick={handleOpenAssignModal}
+                                            >
+                                                👤 Assign to Operator
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
 
                                 <div className="packages-list">
@@ -633,34 +673,21 @@ const OutboundProcess = () => {
                                                 <th>Tracking ID</th>
                                                 <th>Bin ID</th>
                                                 <th>Status</th>
-                                                <th>Action</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {filePackages.map((pkg, index) => (
                                                 <tr 
                                                     key={pkg.tracking_id}
-                                                    className={pkg.dispatched ? 'dispatched-row' : ''}
+                                                    className={pkg.assigned ? 'assigned-row' : ''}
                                                 >
                                                     <td>{index + 1}</td>
                                                     <td className="tracking-cell">{pkg.tracking_id}</td>
                                                     <td>{pkg.bin_id || 'N/A'}</td>
                                                     <td>
-                                                        <span className={`status-badge ${pkg.dispatched ? 'dispatched' : 'picklist-created'}`}>
-                                                            {pkg.dispatched ? '✓ Dispatched' : '📋 Picklist Created'}
+                                                        <span className={`status-badge ${pkg.assigned ? 'assigned' : 'picklist-created'}`}>
+                                                            {pkg.assigned ? `✓ Assigned to ${pkg.assigned_operator?.username || 'Operator'}` : '📋 Ready'}
                                                         </span>
-                                                    </td>
-                                                    <td>
-                                                        {pkg.dispatched ? (
-                                                            <span className="dispatched-indicator">✓ Done</span>
-                                                        ) : (
-                                                            <button 
-                                                                className="dispatch-single-button"
-                                                                onClick={() => handleOpenFileDispatchModal(pkg)}
-                                                            >
-                                                                🚚 Dispatch
-                                                            </button>
-                                                        )}
                                                     </td>
                                                 </tr>
                                             ))}
@@ -791,53 +818,58 @@ const OutboundProcess = () => {
             )}
 
             {/* File Dispatch Modal */}
-            {showFileDispatchModal && (
-                <div className="modal-overlay" onClick={() => setShowFileDispatchModal(false)}>
+            {/* Assign to Operator Modal */}
+            {showAssignModal && (
+                <div className="modal-overlay" onClick={() => setShowAssignModal(false)}>
                     <div className="modal-content" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header">
-                            <h3>Confirm Package Dispatch</h3>
-                            <button className="close-button" onClick={() => setShowFileDispatchModal(false)}>×</button>
+                            <h3>Assign to Operator</h3>
+                            <button className="close-button" onClick={() => setShowAssignModal(false)}>×</button>
                         </div>
                         <div className="modal-body">
                             <p className="modal-instruction">
-                                Please scan or enter tracking ID to confirm dispatch:
-                            </p>
-                            <p className="expected-value">
-                                <strong>Expected: {currentFilePackage?.tracking_id}</strong>
-                            </p>
-                            <p className="dispatch-info">
-                                Bin: <strong>{currentFilePackage?.bin_id || 'N/A'}</strong>
+                                Select an operator to assign {filePackages.length} shipments:
                             </p>
                             
-                            <div className="input-group">
-                                <input
-                                    type="text"
-                                    className="input-field"
-                                    placeholder="Scan or enter Tracking ID"
-                                    value={scannedTrackingId}
-                                    onChange={(e) => setScannedTrackingId(e.target.value.toUpperCase())}
-                                    autoFocus
-                                />
-                                <button 
-                                    className="scan-button"
-                                    onClick={() => setShowFileDispatchScanner(true)}
-                                >
-                                    📷 Scan
-                                </button>
+                            <div className="operator-selection">
+                                {operators.length === 0 ? (
+                                    <p className="no-operators">No operators available for this warehouse</p>
+                                ) : (
+                                    operators.map((operator) => (
+                                        <div 
+                                            key={operator.id}
+                                            className={`operator-card ${selectedOperator === operator.id ? 'selected' : ''}`}
+                                            onClick={() => setSelectedOperator(operator.id)}
+                                        >
+                                            <div className="operator-avatar">
+                                                {operator.first_name?.charAt(0) || operator.username.charAt(0)}
+                                            </div>
+                                            <div className="operator-info">
+                                                <div className="operator-name">
+                                                    {operator.first_name && operator.last_name 
+                                                        ? `${operator.first_name} ${operator.last_name}`
+                                                        : operator.username}
+                                                </div>
+                                                <div className="operator-username">@{operator.username}</div>
+                                            </div>
+                                            {selectedOperator === operator.id && (
+                                                <div className="selected-indicator">✓</div>
+                                            )}
+                                        </div>
+                                    ))
+                                )}
                             </div>
-
-                            {fileDispatchError && (
-                                <div className="error-box">
-                                    {fileDispatchError}
-                                </div>
-                            )}
                         </div>
                         <div className="modal-footer">
-                            <button className="cancel-button" onClick={() => setShowFileDispatchModal(false)}>
+                            <button className="cancel-button" onClick={() => setShowAssignModal(false)}>
                                 Cancel
                             </button>
-                            <button className="confirm-button" onClick={handleConfirmFileDispatch}>
-                                🚚 Confirm Dispatch
+                            <button 
+                                className="confirm-button" 
+                                onClick={handleAssignToOperator}
+                                disabled={!selectedOperator || assignmentLoading}
+                            >
+                                {assignmentLoading ? '⏳ Assigning...' : '✓ Confirm Assignment'}
                             </button>
                         </div>
                     </div>
@@ -866,17 +898,6 @@ const OutboundProcess = () => {
                     onScanSuccess={handleDispatchScan}
                     onClose={() => setShowDispatchScanner(false)}
                     scannerType="Bin ID"
-                />
-            )}
-
-            {showFileDispatchScanner && (
-                <BarcodeScanner 
-                    onScanSuccess={(scannedValue) => {
-                        setScannedTrackingId(scannedValue.toUpperCase());
-                        setShowFileDispatchScanner(false);
-                    }}
-                    onClose={() => setShowFileDispatchScanner(false)}
-                    scannerType="Tracking ID"
                 />
             )}
         </div>

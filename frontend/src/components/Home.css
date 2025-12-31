@@ -422,6 +422,53 @@
 .app-card.disabled {
     opacity: 0.6;
     cursor: not-allowed;
+    position: relative;
+}
+
+.app-card.disabled:hover .disabled-tooltip {
+    opacity: 1;
+    visibility: visible;
+    transform: translate(-50%, -60%) scale(1);
+}
+
+.disabled-tooltip {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.9);
+    background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+    color: white;
+    padding: 14px 20px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    box-shadow: 0 6px 20px rgba(231, 76, 60, 0.5);
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    z-index: 10;
+    pointer-events: none;
+    max-width: 90%;
+}
+
+.disabled-tooltip::before {
+    content: '⚠️';
+    margin-right: 6px;
+    font-size: 14px;
+}
+
+.disabled-tooltip::after {
+    content: '';
+    position: absolute;
+    bottom: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 10px solid transparent;
+    border-right: 10px solid transparent;
+    border-top: 10px solid #c0392b;
 }
 
 .app-icon {

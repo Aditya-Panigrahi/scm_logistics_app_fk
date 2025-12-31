@@ -64,7 +64,17 @@ const UserManagement = () => {
     };
 
     const handleEdit = (userToEdit) => {
-        setEditingUser(userToEdit);
+        // Check if warehouse admin is trying to edit
+        if (user?.role === 'WAREHOUSE_ADMIN') {
+            alert('⚠️ Only Superadmin can edit users. Please contact your Superadmin for assistance.');
+            return;
+        }
+                // Check if warehouse admin is trying to edit
+        if (user?.role === 'WAREHOUSE_ADMIN') {
+            alert('⚠️ Only Superadmin can edit users. Please contact your Superadmin for assistance.');
+            return;
+        }
+                setEditingUser(userToEdit);
         setFormData({
             username: userToEdit.username,
             email: userToEdit.email || '',
@@ -146,6 +156,12 @@ const UserManagement = () => {
     };
 
     const handleDelete = async (userId, username) => {
+        // Check if warehouse admin is trying to delete
+        if (user?.role === 'WAREHOUSE_ADMIN') {
+            alert('⚠️ Only Superadmin can delete users. Please contact your Superadmin for assistance.');
+            return;
+        }
+        
         if (window.confirm(`Are you sure you want to delete user "${username}"?`)) {
             setLoading(true);
             try {
@@ -259,19 +275,30 @@ const UserManagement = () => {
                                                 </span>
                                             </td>
                                             <td>
-                                                <button 
-                                                    onClick={() => handleEdit(userItem)} 
-                                                    className="action-button edit-button"
-                                                >
-                                                    Edit
-                                                </button>
-                                                <button 
-                                                    onClick={() => handleDelete(userItem.id, userItem.username)} 
-                                                    className="action-button delete-button"
-                                                    disabled={userItem.id === user?.id}
-                                                >
-                                                    Delete
-                                                </button>
+                                                <div className="edit-button-wrapper">
+                                                    <button 
+                                                        onClick={() => handleEdit(userItem)} 
+                                                        className="action-button edit-button"
+                                                        disabled={user?.role === 'WAREHOUSE_ADMIN'}
+                                                    >
+                                                        Edit
+                                                    </button>
+                                                    {user?.role === 'WAREHOUSE_ADMIN' && (
+                                                        <span className="edit-tooltip">Contact Superadmin to edit users</span>
+                                                    )}
+                                                </div>
+                                                <div className="delete-button-wrapper">
+                                                    <button 
+                                                        onClick={() => handleDelete(userItem.id, userItem.username)} 
+                                                        className="action-button delete-button"
+                                                        disabled={userItem.id === user?.id || user?.role === 'WAREHOUSE_ADMIN'}
+                                                    >
+                                                        Delete
+                                                    </button>
+                                                    {user?.role === 'WAREHOUSE_ADMIN' && (
+                                                        <span className="delete-tooltip">Contact Superadmin to delete users</span>
+                                                    )}
+                                                </div>
                                             </td>
                                         </tr>
                                     ))

@@ -276,6 +276,62 @@
     background: #1976d2;
 }
 
+.edit-button:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+}
+
+/* Edit button wrapper for tooltip */
+.edit-button-wrapper {
+    display: inline-block;
+    position: relative;
+    margin-right: 8px;
+}
+
+.edit-button-wrapper:hover .edit-tooltip {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(-5px);
+}
+
+.edit-tooltip {
+    position: absolute;
+    bottom: 100%;
+    right: 0;
+    transform: translateY(0);
+    background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+    color: white;
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    box-shadow: 0 4px 12px rgba(231, 76, 60, 0.4);
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+    z-index: 100;
+    pointer-events: none;
+    margin-bottom: 8px;
+}
+
+.edit-tooltip::before {
+    content: '⚠️';
+    margin-right: 6px;
+}
+
+.edit-tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    right: 20px;
+    width: 0;
+    height: 0;
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+    border-top: 8px solid #c0392b;
+}
+
 .delete-button {
     background: #f44336;
     color: white;
@@ -288,6 +344,56 @@
 .delete-button:disabled {
     background: #ccc;
     cursor: not-allowed;
+}
+
+/* Delete button wrapper for tooltip */
+.delete-button-wrapper {
+    display: inline-block;
+    position: relative;
+}
+
+.delete-button-wrapper:hover .delete-tooltip {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(-5px);
+}
+
+.delete-tooltip {
+    position: absolute;
+    bottom: 100%;
+    right: 0;
+    transform: translateY(0);
+    background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+    color: white;
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    box-shadow: 0 4px 12px rgba(231, 76, 60, 0.4);
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+    z-index: 100;
+    pointer-events: none;
+    margin-bottom: 8px;
+}
+
+.delete-tooltip::before {
+    content: '⚠️';
+    margin-right: 6px;
+}
+
+.delete-tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    right: 20px;
+    width: 0;
+    height: 0;
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+    border-top: 8px solid #c0392b;
 }
 
 /* Modal */

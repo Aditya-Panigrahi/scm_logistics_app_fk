@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import './ManifestCreation.css';
 import api from '../services/api';
 
 const ManifestCreation = () => {
     const navigate = useNavigate();
+    const { selectedWarehouse } = useAuth();
     const [selectedFile, setSelectedFile] = useState(null);
     const [fileType, setFileType] = useState('csv');
     const [loading, setLoading] = useState(false);
@@ -96,8 +98,16 @@ const ManifestCreation = () => {
                 return;
             }
 
-            // Send to backend
-            const response = await api.post('/inbound/process_manifest/', {
+            // Check if warehouse is selected (for superadmin)
+            if (!selectedWarehouse) {
+                setError('Please select a warehouse before uploading manifest.');
+                setLoading(false);
+                return;
+            }
+
+            // Send to backend with warehouse_id as query param
+            const url = `/inbound/process_manifest/?warehouse_id=${selectedWarehouse.warehouse_id}`;
+            const response = await api.post(url, {
                 tracking_ids: trackingIds
             });
 
@@ -119,6 +129,62 @@ const ManifestCreation = () => {
 
     const handleBack = () => {
         navigate('/');
+    };
+
+    const handleDownloadLogs = () => {
+        if (!results) return;
+
+        // Prepare log data
+        const logLines = [];
+        logLines.push('Tracking ID,Status,Details');
+        logLines.push(''); // Empty line for separation
+        logLines.push(`Upload Summary - ${new Date().toLocaleString()}`);
+        logLines.push(`Total Processed: ${results.total_processed}`);
+        logLines.push(`Created: ${results.created_count || 0}`);
+        logLines.push(`Updated: ${results.updated_count || 0}`);
+        logLines.push(`Failed: ${results.failed_count}`);
+        logLines.push(''); // Empty line for separation
+        logLines.push('Tracking ID,Status,Details');
+
+        // Add created records
+        if (results.created_ids && results.created_ids.length > 0) {
+            results.created_ids.forEach(id => {
+                logLines.push(`${id},Created,Successfully created new shipment record`);
+            });
+        }
+
+        // Add updated records
+        if (results.updated_ids && results.updated_ids.length > 0) {
+            results.updated_ids.forEach(id => {
+                logLines.push(`${id},Updated,Successfully updated existing shipment record`);
+            });
+        }
+
+        // Add failed records
+        if (results.failed_ids && results.failed_ids.length > 0) {
+            results.failed_ids.forEach(item => {
+                const reason = item.reason ? item.reason.replace(/,/g, ';') : 'Unknown error';
+                logLines.push(`${item.tracking_id},Failed,"${reason}"`);
+            });
+        }
+
+        // Create CSV content
+        const csvContent = logLines.join('\n');
+        
+        // Create blob and download
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+        const filename = `manifest_upload_log_${timestamp}.csv`;
+        
+        link.setAttribute('href', url);
+        link.setAttribute('download', filename);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     };
 
     return (
@@ -286,9 +352,14 @@ const ManifestCreation = () => {
                                     </div>
                                 )}
 
-                                <button className="reset-button" onClick={handleReset}>
-                                    📤 Upload Another File
-                                </button>
+                                <div className="action-buttons">
+                                    <button className="download-logs-button" onClick={handleDownloadLogs}>
+                                        📥 Download Logs
+                                    </button>
+                                    <button className="reset-button" onClick={handleReset}>
+                                        📤 Upload Another File
+                                    </button>
+                                </div>
                             </div>
                         )}
                     </div>

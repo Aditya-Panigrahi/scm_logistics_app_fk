@@ -43,6 +43,7 @@ class Shipment(models.Model):
     tracking_id = models.CharField(max_length=100, unique=True, primary_key=True)
     warehouse = models.ForeignKey('accounts.Warehouse', on_delete=models.CASCADE, related_name='shipments', null=True, blank=True)
     bin = models.ForeignKey(Bin, on_delete=models.SET_NULL, null=True, blank=True, related_name='shipments')
+    assigned_operator = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_shipments')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='unregistered')
     manifested = models.BooleanField(default=False)
     time_in = models.DateTimeField(default=timezone.now)

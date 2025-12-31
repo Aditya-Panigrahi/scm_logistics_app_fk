@@ -7,7 +7,7 @@ import './InboundProcess.css';
 
 const InboundProcess = () => {
     const navigate = useNavigate();
-    const { selectedWarehouse } = useAuth();
+    const { user, selectedWarehouse } = useAuth();
     const [binId, setBinId] = useState('');
     const [trackingId, setTrackingId] = useState('');
     const [binValidated, setBinValidated] = useState(false);
@@ -19,6 +19,7 @@ const InboundProcess = () => {
     const [showBinScanner, setShowBinScanner] = useState(false);
     const [showPackageScanner, setShowPackageScanner] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
+    const [lastValidatedBinId, setLastValidatedBinId] = useState('');
 
     // Reset state when warehouse changes
     useEffect(() => {
@@ -30,20 +31,22 @@ const InboundProcess = () => {
         setAssignedPackages([]);
         setMessage('');
         setMessageType('');
+        setLastValidatedBinId('');
     }, [selectedWarehouse]);
 
     const handleAutoValidateBin = useCallback(async () => {
-        if (isProcessing) return;
+        if (isProcessing || lastValidatedBinId === binId) return;
         
         setIsProcessing(true);
         setMessage('');
+        setLastValidatedBinId(binId);
         
         try {
             const response = await inboundAPI.scanBin(binId);
             if (response.data.success) {
                 setBinValidated(true);
                 setBinLocked(true);
-                setMessage(`✓ Bin ${binId} validated and locked. Ready to scan packages.`);
+                setMessage(`✓ Bin ${binId} validated and locked. Ready to scan shipments.`);
                 setMessageType('success');
                 
                 // Get bin capacity
@@ -52,24 +55,25 @@ const InboundProcess = () => {
                 }
             }
         } catch (error) {
-            setMessage(error.response?.data?.errors?.bin_id?.[0] || 'Failed to validate bin');
+            setMessage(error.response?.data?.errors?.bin_id?.[0] || error.response?.data?.errors?.warehouse_id?.[0] || 'Failed to validate bin');
             setMessageType('error');
             setBinValidated(false);
+            setBinLocked(false);
         } finally {
             setIsProcessing(false);
         }
-    }, [binId, isProcessing]);
+    }, [binId, isProcessing, lastValidatedBinId]);
 
     // Auto-validate bin when binId changes (must be exactly 7 characters)
     useEffect(() => {
-        if (binId && binId.length === 7 && !binLocked) {
+        if (binId && binId.length === 7 && !binLocked && binId !== lastValidatedBinId) {
             const timer = setTimeout(() => {
                 handleAutoValidateBin();
             }, 500); // Debounce 500ms
             
             return () => clearTimeout(timer);
         }
-    }, [binId, binLocked, handleAutoValidateBin]);
+    }, [binId, binLocked, lastValidatedBinId, handleAutoValidateBin]);
 
     const handleAssignPackage = async () => {
         if (!binValidated || !trackingId) {
@@ -100,10 +104,10 @@ const InboundProcess = () => {
                 
                 // Check if bin is at capacity
                 if (response.data.bin_capacity_used >= response.data.bin_capacity_total) {
-                    setMessage(`✓ Package assigned! BIN FULL (${response.data.bin_capacity_used}/${response.data.bin_capacity_total})`);
+                    setMessage(`✓ Shipment assigned! BIN FULL (${response.data.bin_capacity_used}/${response.data.bin_capacity_total})`);
                     setMessageType('warning');
                 } else {
-                    setMessage(`✓ Package ${trackingId} assigned! (${response.data.bin_capacity_used}/${response.data.bin_capacity_total})`);
+                    setMessage(`✓ Shipment ${trackingId} assigned! (${response.data.bin_capacity_used}/${response.data.bin_capacity_total})`);
                     setMessageType('success');
                 }
                 
@@ -117,10 +121,10 @@ const InboundProcess = () => {
             }
         } catch (error) {
             if (error.response?.data?.capacity_exceeded) {
-                setMessage(`⚠️ Bin ${binId} is at full capacity! Cannot assign more packages.`);
+                setMessage(`⚠️ Bin ${binId} is at full capacity! Cannot assign more shipments.`);
                 setMessageType('warning');
             } else {
-                setMessage(error.response?.data?.errors?.bin_id?.[0] || error.response?.data?.errors?.non_field_errors?.[0] || 'Failed to assign package');
+                setMessage(error.response?.data?.errors?.bin_id?.[0] || error.response?.data?.errors?.non_field_errors?.[0] || 'Failed to assign shipment');
                 setMessageType('error');
             }
         } finally {
@@ -178,9 +182,11 @@ const InboundProcess = () => {
                         <button className="back-btn" onClick={() => navigate('/')}>
                             ← Back
                         </button>
-                        <button className="dashboard-btn" onClick={() => navigate('/inventory-dashboard')}>
-                            📊 Dashboard
-                        </button>
+                        {user?.role !== 'OPERATOR' && (
+                            <button className="dashboard-btn" onClick={() => navigate('/inventory-dashboard')}>
+                                📊 Dashboard
+                            </button>
+                        )}
                     </div>
                     <div className="logo-section">
                         <img 
@@ -194,7 +200,7 @@ const InboundProcess = () => {
             </div>
 
             <div className="content-wrapper">
-                <h1 className="page-title">Inbound Process - Package Putaway</h1>
+                <h1 className="page-title">Inbound Process - Shipment Putaway</h1>
             
             {message && (
                 <div className={`message ${messageType}`}>
@@ -213,7 +219,17 @@ const InboundProcess = () => {
                                 type="text"
                                 id="binId"
                                 value={binId}
-                                onChange={(e) => setBinId(e.target.value.toUpperCase())}
+                                onChange={(e) => {
+                                    const newValue = e.target.value.toUpperCase();
+                                    setBinId(newValue);
+                                    // Reset validation state when user changes bin ID
+                                    if (newValue !== binId) {
+                                        setBinValidated(false);
+                                        setBinLocked(false);
+                                        setMessage('');
+                                        setLastValidatedBinId('');
+                                    }
+                                }}
                                 placeholder="Enter Bin ID"
                                 required
                                 disabled={binLocked}
@@ -287,7 +303,7 @@ const InboundProcess = () => {
                     {/* Assigned Packages List */}
                     {assignedPackages.length > 0 && (
                         <div className="assigned-packages-list">
-                            <h3>Assigned Packages ({assignedPackages.length})</h3>
+                            <h3>Assigned Shipments ({assignedPackages.length})</h3>
                             <div className="packages-table">
                                 <table>
                                     <thead>

@@ -4,6 +4,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.utils import timezone
+from accounts.models import Warehouse
 from accounts.permissions import (
     IsOperationHeadOrAbove, CanAccessInbound, 
     CanAccessOutbound, CanAccessManifest, CanAccessInventoryDashboard
@@ -13,7 +14,7 @@ from .serializers import (
     BinSerializer, ShipmentSerializer, AuditLogSerializer,
     ScanBinSerializer, ScanPackageSerializer, AssignPackageSerializer,
     ManifestUploadSerializer, SearchPackageSerializer, SearchBinSerializer,
-    DissociatePackageSerializer
+    DissociatePackageSerializer, AssignOperatorSerializer
 )
 
 
@@ -93,7 +94,19 @@ class InboundProcessViewSet(viewsets.ViewSet):
         serializer = ScanBinSerializer(data=request.data)
         if serializer.is_valid():
             bin_id = serializer.validated_data['bin_id']
-            warehouse = request.user.warehouse
+            
+            # Get warehouse from query param (for superadmin) or user.warehouse
+            warehouse_id = request.query_params.get('warehouse_id')
+            if warehouse_id:
+                try:
+                    warehouse = Warehouse.objects.get(warehouse_id=warehouse_id)
+                except Warehouse.DoesNotExist:
+                    return Response({
+                        'success': False,
+                        'errors': {'warehouse_id': [f'Warehouse {warehouse_id} not found.']}
+                    }, status=status.HTTP_404_NOT_FOUND)
+            else:
+                warehouse = request.user.warehouse
             
             # Get or create bin
             bin_obj, created = Bin.objects.get_or_create(
@@ -157,7 +170,19 @@ class InboundProcessViewSet(viewsets.ViewSet):
         if serializer.is_valid():
             bin_id = serializer.validated_data['bin_id']
             tracking_id = serializer.validated_data['tracking_id']
-            warehouse = request.user.warehouse
+            
+            # Get warehouse from query param (for superadmin) or user.warehouse
+            warehouse_id = request.query_params.get('warehouse_id')
+            if warehouse_id:
+                try:
+                    warehouse = Warehouse.objects.get(warehouse_id=warehouse_id)
+                except Warehouse.DoesNotExist:
+                    return Response({
+                        'success': False,
+                        'errors': {'warehouse_id': [f'Warehouse {warehouse_id} not found.']}
+                    }, status=status.HTTP_404_NOT_FOUND)
+            else:
+                warehouse = request.user.warehouse
             
             # Get bin object
             bin_obj = Bin.objects.get(bin_id=bin_id)
@@ -174,7 +199,7 @@ class InboundProcessViewSet(viewsets.ViewSet):
             if current_shipments_count >= bin_obj.capacity:
                 return Response({
                     'success': False,
-                    'errors': {'bin_id': [f'Bin {bin_id} is at full capacity ({bin_obj.capacity}). Cannot assign more packages.']},
+                    'errors': {'bin_id': [f'Bin {bin_id} is at full capacity ({bin_obj.capacity}). Cannot assign more shipments.']},
                     'capacity_exceeded': True
                 }, status=status.HTTP_400_BAD_REQUEST)
             
@@ -211,12 +236,12 @@ class InboundProcessViewSet(viewsets.ViewSet):
                 shipment=shipment,
                 warehouse=warehouse,
                 user=request.user,
-                details=f'Package {tracking_id} assigned to bin {bin_id}'
+                details=f'Shipment {tracking_id} assigned to bin {bin_id}'
             )
             
             return Response({
                 'success': True,
-                'message': f'Package {tracking_id} successfully assigned to bin {bin_id}',
+                'message': f'Shipment {tracking_id} successfully assigned to bin {bin_id}',
                 'shipment': ShipmentSerializer(shipment).data,
                 'bin_capacity_used': current_shipments_count + 1,
                 'bin_capacity_total': bin_obj.capacity,
@@ -235,6 +260,28 @@ class InboundProcessViewSet(viewsets.ViewSet):
         if serializer.is_valid():
             tracking_ids = serializer.validated_data['tracking_ids']
             
+            # Get the warehouse from the user or from query params (for superadmin)
+            warehouse = None
+            if request.user.role == 'SUPERADMIN':
+                warehouse_id = request.query_params.get('warehouse_id')
+                if warehouse_id:
+                    try:
+                        from accounts.models import Warehouse
+                        warehouse = Warehouse.objects.get(warehouse_id=warehouse_id)
+                    except Warehouse.DoesNotExist:
+                        return Response({
+                            'success': False,
+                            'errors': {'warehouse': ['Selected warehouse not found']}
+                        }, status=status.HTTP_400_BAD_REQUEST)
+            else:
+                warehouse = request.user.warehouse
+            
+            if not warehouse:
+                return Response({
+                    'success': False,
+                    'errors': {'warehouse': ['No warehouse selected. Please select a warehouse first.']}
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
             created_ids = []
             updated_ids = []
             failed_ids = []
@@ -247,6 +294,7 @@ class InboundProcessViewSet(viewsets.ViewSet):
                         defaults={
                             'status': 'manifested',
                             'manifested': True,
+                            'warehouse': warehouse,
                             'time_in': timezone.now()
                         }
                     )
@@ -256,7 +304,7 @@ class InboundProcessViewSet(viewsets.ViewSet):
                         AuditLog.objects.create(
                             action='updated',
                             shipment=shipment,
-                            user=request.user.username if request.user.is_authenticated else 'anonymous',
+                            user=request.user if request.user.is_authenticated else None,
                             details=f'Shipment created with manifested status via manifest upload'
                         )
                         created_ids.append(tracking_id)
@@ -264,13 +312,14 @@ class InboundProcessViewSet(viewsets.ViewSet):
                         # Update existing shipment
                         shipment.status = 'manifested'
                         shipment.manifested = True
+                        shipment.warehouse = warehouse
                         shipment.save()
                         
                         # Create audit log
                         AuditLog.objects.create(
                             action='updated',
                             shipment=shipment,
-                            user=request.user.username if request.user.is_authenticated else 'anonymous',
+                            user=request.user if request.user.is_authenticated else None,
                             details=f'Status updated to manifested via manifest upload'
                         )
                         updated_ids.append(tracking_id)
@@ -335,7 +384,7 @@ class OutboundProcessViewSet(viewsets.ViewSet):
             except Shipment.DoesNotExist:
                 return Response({
                     'success': False,
-                    'errors': {'tracking_id': [f'Package {tracking_id} not found in system']}
+                    'errors': {'tracking_id': [f'Shipment {tracking_id} not found in system']}
                 }, status=status.HTTP_404_NOT_FOUND)
         
         return Response({
@@ -413,7 +462,7 @@ class OutboundProcessViewSet(viewsets.ViewSet):
             AuditLog.objects.create(
                 action='dissociated',
                 shipment=shipment,
-                user=request.user.username if request.user.is_authenticated else 'anonymous',
+                user=request.user if request.user.is_authenticated else None,
                 details=f'Package {tracking_id} picked up from bin {bin_id}'
             )
             
@@ -443,13 +492,18 @@ class OutboundProcessViewSet(viewsets.ViewSet):
                 bin_obj = Bin.objects.get(bin_id=bin_id)
                 
                 # Get all shipments in putaway status in this bin
-                shipments = Shipment.objects.filter(bin=bin_obj, status__in=['putaway', 'picked'])
+                shipments = Shipment.objects.filter(bin=bin_obj, status__in=['putaway', 'picked']).select_related('assigned_operator')
                 
                 packages = [{
                     'tracking_id': s.tracking_id,
                     'status': s.status,
                     'manifested': s.manifested,
-                    'time_in': s.time_in
+                    'time_in': s.time_in,
+                    'assigned_operator': {
+                        'id': s.assigned_operator.id,
+                        'username': s.assigned_operator.username,
+                        'name': f"{s.assigned_operator.first_name} {s.assigned_operator.last_name}".strip()
+                    } if s.assigned_operator else None
                 } for s in shipments]
                 
                 return Response({
@@ -496,7 +550,15 @@ class OutboundProcessViewSet(viewsets.ViewSet):
             }, status=status.HTTP_400_BAD_REQUEST)
         
         try:
-            shipment = Shipment.objects.get(tracking_id=expected_tracking_id.strip().upper())
+            shipment = Shipment.objects.select_related('assigned_operator').get(tracking_id=expected_tracking_id.strip().upper())
+            
+            # Check if package is assigned to another operator
+            if shipment.assigned_operator and shipment.assigned_operator != request.user:
+                operator_name = f"{shipment.assigned_operator.first_name} {shipment.assigned_operator.last_name}".strip() or shipment.assigned_operator.username
+                return Response({
+                    'success': False,
+                    'errors': {'tracking_id': [f'This shipment is assigned to {operator_name}. Only they can pick it up.']}
+                }, status=status.HTTP_403_FORBIDDEN)
             
             if shipment.status != 'putaway':
                 return Response({
@@ -512,7 +574,7 @@ class OutboundProcessViewSet(viewsets.ViewSet):
             AuditLog.objects.create(
                 action='updated',
                 shipment=shipment,
-                user=request.user.username if request.user.is_authenticated else 'anonymous',
+                user=request.user if request.user.is_authenticated else None,
                 details=f'Package {shipment.tracking_id} marked as picked'
             )
             
@@ -576,7 +638,7 @@ class OutboundProcessViewSet(viewsets.ViewSet):
                 AuditLog.objects.create(
                     action='dispatched',
                     shipment=shipment,
-                    user=request.user.username if request.user.is_authenticated else 'anonymous',
+                    user=request.user if request.user.is_authenticated else None,
                     details=f'Package {shipment.tracking_id} dispatched from bin {bin_obj.bin_id}'
                 )
                 
@@ -678,7 +740,7 @@ class OutboundProcessViewSet(viewsets.ViewSet):
                         AuditLog.objects.create(
                             action='updated',
                             shipment=shipment,
-                            user=request.user.username if request.user.is_authenticated else 'anonymous',
+                            user=request.user if request.user.is_authenticated else None,
                             details=f'Package {tracking_id} added to picklist'
                         )
                         
@@ -748,7 +810,7 @@ class OutboundProcessViewSet(viewsets.ViewSet):
             AuditLog.objects.create(
                 action='dispatched',
                 shipment=shipment,
-                user=request.user.username if request.user.is_authenticated else 'anonymous',
+                user=request.user if request.user.is_authenticated else None,
                 details=f'Package {tracking_id} dispatched from picklist (bin: {bin_id})'
             )
             
@@ -767,3 +829,110 @@ class OutboundProcessViewSet(viewsets.ViewSet):
                 'success': False,
                 'error': f'Package {tracking_id} not found in system'
             }, status=status.HTTP_404_NOT_FOUND)
+    @action(detail=False, methods=['get'])
+    def get_warehouse_operators(self, request):
+        """Get list of operators assigned to the selected warehouse"""
+        from accounts.models import CustomUser
+        
+        # Get warehouse from query param or user's warehouse
+        warehouse_id = request.query_params.get('warehouse_id')
+        if warehouse_id:
+            try:
+                warehouse = Warehouse.objects.get(warehouse_id=warehouse_id)
+            except Warehouse.DoesNotExist:
+                return Response({
+                    'success': False,
+                    'error': 'Warehouse not found'
+                }, status=status.HTTP_404_NOT_FOUND)
+        else:
+            warehouse = request.user.warehouse
+            if not warehouse:
+                return Response({
+                    'success': False,
+                    'error': 'No warehouse associated with user'
+                }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Get all operators for this warehouse
+        operators = CustomUser.objects.filter(
+            warehouse=warehouse,
+            role='OPERATOR'
+        ).values('id', 'username', 'first_name', 'last_name', 'email')
+        
+        return Response({
+            'success': True,
+            'operators': list(operators)
+        }, status=status.HTTP_200_OK)
+    
+    @action(detail=False, methods=['post'])
+    def assign_to_operator(self, request):
+        """Assign shipments to a specific operator"""
+        serializer = AssignOperatorSerializer(data=request.data)
+        if serializer.is_valid():
+            tracking_ids = serializer.validated_data['tracking_ids']
+            operator_id = serializer.validated_data['operator_id']
+            
+            # Get warehouse from query param or user's warehouse
+            warehouse_id = request.query_params.get('warehouse_id')
+            if warehouse_id:
+                try:
+                    warehouse = Warehouse.objects.get(warehouse_id=warehouse_id)
+                except Warehouse.DoesNotExist:
+                    return Response({
+                        'success': False,
+                        'error': 'Warehouse not found'
+                    }, status=status.HTTP_404_NOT_FOUND)
+            else:
+                warehouse = request.user.warehouse
+            
+            # Validate operator exists and belongs to the warehouse
+            from accounts.models import CustomUser
+            try:
+                operator = CustomUser.objects.get(id=operator_id, warehouse=warehouse, role='OPERATOR')
+            except CustomUser.DoesNotExist:
+                return Response({
+                    'success': False,
+                    'error': 'Operator not found or does not belong to this warehouse'
+                }, status=status.HTTP_404_NOT_FOUND)
+            
+            # Assign shipments to operator
+            assigned_count = 0
+            failed_assignments = []
+            
+            for tracking_id in tracking_ids:
+                try:
+                    shipment = Shipment.objects.get(tracking_id=tracking_id, warehouse=warehouse)
+                    shipment.assigned_operator = operator
+                    shipment.status = 'picklist-created'
+                    shipment.save()
+                    assigned_count += 1
+                    
+                    # Create audit log
+                    AuditLog.objects.create(
+                        action='assigned',
+                        shipment=shipment,
+                        warehouse=warehouse,
+                        user=request.user,
+                        details=f'Shipment {tracking_id} assigned to operator {operator.username}'
+                    )
+                except Shipment.DoesNotExist:
+                    failed_assignments.append({
+                        'tracking_id': tracking_id,
+                        'reason': 'Shipment not found'
+                    })
+            
+            return Response({
+                'success': True,
+                'assigned_count': assigned_count,
+                'failed_count': len(failed_assignments),
+                'failed_assignments': failed_assignments,
+                'operator': {
+                    'id': operator.id,
+                    'username': operator.username,
+                    'name': operator.get_full_name()
+                }
+            }, status=status.HTTP_200_OK)
+        
+        return Response({
+            'success': False,
+            'errors': serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)

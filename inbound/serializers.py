@@ -11,10 +11,12 @@ class BinSerializer(serializers.ModelSerializer):
 
 class ShipmentSerializer(serializers.ModelSerializer):
     bin_id = serializers.CharField(source='bin.bin_id', read_only=True)
+    assigned_operator_name = serializers.CharField(source='assigned_operator.get_full_name', read_only=True, allow_null=True)
+    assigned_operator_username = serializers.CharField(source='assigned_operator.username', read_only=True, allow_null=True)
     
     class Meta:
         model = Shipment
-        fields = ['tracking_id', 'bin', 'bin_id', 'status', 'manifested', 'time_in', 'time_out', 'created_at', 'updated_at']
+        fields = ['tracking_id', 'bin', 'bin_id', 'assigned_operator', 'assigned_operator_name', 'assigned_operator_username', 'status', 'manifested', 'time_in', 'time_out', 'created_at', 'updated_at']
         read_only_fields = ['created_at', 'updated_at', 'time_in']
 
 
@@ -105,3 +107,17 @@ class DissociatePackageSerializer(serializers.Serializer):
             )
         
         return data
+
+
+class AssignOperatorSerializer(serializers.Serializer):
+    """Serializer for assigning shipments to operator"""
+    tracking_ids = serializers.ListField(
+        child=serializers.CharField(max_length=100),
+        allow_empty=False
+    )
+    operator_id = serializers.IntegerField()
+    
+    def validate_tracking_ids(self, value):
+        if not value:
+            raise serializers.ValidationError("Tracking IDs list cannot be empty")
+        return value

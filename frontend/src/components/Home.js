@@ -47,28 +47,48 @@ const Home = () => {
         setShowWarehouseSelector(false);
     };
 
+    const checkWarehouseSelected = () => {
+        if (user?.role === 'SUPERADMIN' && !selectedWarehouse) {
+            alert('⚠️ Please select a warehouse first before accessing this application.');
+            return false;
+        }
+        return true;
+    };
+
     const handleNavigateToInbound = () => {
-        navigate('/inbound');
+        if (checkWarehouseSelected()) {
+            navigate('/inbound');
+        }
     };
 
     const handleNavigateToOutbound = () => {
-        navigate('/outbound');
+        if (checkWarehouseSelected()) {
+            navigate('/outbound');
+        }
     };
 
     const handleNavigateToManifestCreation = () => {
-        navigate('/manifest-creation');
+        if (checkWarehouseSelected()) {
+            navigate('/manifest-creation');
+        }
     };
 
     const handleNavigateToInventoryDashboard = () => {
-        navigate('/inventory-dashboard');
+        if (checkWarehouseSelected()) {
+            navigate('/inventory-dashboard');
+        }
     };
 
     const handleNavigateToUserManagement = () => {
-        navigate('/user-management');
+        if (checkWarehouseSelected()) {
+            navigate('/user-management');
+        }
     };
 
     const handleNavigateToWarehouseManagement = () => {
-        navigate('/warehouse-management');
+        if (checkWarehouseSelected()) {
+            navigate('/warehouse-management');
+        }
     };
 
     const getRoleDisplayName = (role) => {
@@ -183,9 +203,12 @@ const Home = () => {
                         {/* Manifest Creation App Card */}
                         {hasPermission('manifest') && (
                             <div 
-                                className="app-card manifest-card" 
+                                className={`app-card manifest-card ${user?.role === 'SUPERADMIN' && !selectedWarehouse ? 'disabled' : ''}`}
                                 onClick={handleNavigateToManifestCreation}
                             >
+                                {user?.role === 'SUPERADMIN' && !selectedWarehouse && (
+                                    <div className="disabled-tooltip">Select warehouse first</div>
+                                )}
                                 <div className="app-icon">
                                     📋
                                 </div>
@@ -200,15 +223,18 @@ const Home = () => {
                         {/* Inbound App Card */}
                         {hasPermission('inbound') && (
                             <div 
-                                className="app-card inbound-card" 
+                                className={`app-card inbound-card ${user?.role === 'SUPERADMIN' && !selectedWarehouse ? 'disabled' : ''}`}
                                 onClick={handleNavigateToInbound}
                             >
+                                {user?.role === 'SUPERADMIN' && !selectedWarehouse && (
+                                    <div className="disabled-tooltip">Select warehouse first</div>
+                                )}
                                 <div className="app-icon">
                                     📦
                                 </div>
                                 <h3 className="app-name">Inbound Process</h3>
                                 <p className="app-description">
-                                    Scan and assign packages to bins
+                                    Scan and assign shipments to bins
                                 </p>
                                 <div className="app-badge">Active</div>
                             </div>
@@ -217,15 +243,18 @@ const Home = () => {
                         {/* Outbound App Card */}
                         {(hasPermission('outbound') || hasPermission('outbound-pickup')) && (
                             <div 
-                                className="app-card outbound-card" 
+                                className={`app-card outbound-card ${user?.role === 'SUPERADMIN' && !selectedWarehouse ? 'disabled' : ''}`}
                                 onClick={handleNavigateToOutbound}
                             >
+                                {user?.role === 'SUPERADMIN' && !selectedWarehouse && (
+                                    <div className="disabled-tooltip">Select warehouse first</div>
+                                )}
                                 <div className="app-icon">
                                     🚚
                                 </div>
                                 <h3 className="app-name">Outbound Process</h3>
                                 <p className="app-description">
-                                    Locate and pick up packages for dispatch
+                                    Locate and pick up shipments for dispatch
                                     {user?.role === 'OPERATOR' && ' (Pickup Only)'}
                                 </p>
                                 <div className="app-badge">Active</div>
@@ -235,9 +264,12 @@ const Home = () => {
                         {/* Inventory Dashboard Card */}
                         {hasPermission('inventory') && (
                             <div 
-                                className="app-card dashboard-card" 
+                                className={`app-card dashboard-card ${user?.role === 'SUPERADMIN' && !selectedWarehouse ? 'disabled' : ''}`}
                                 onClick={handleNavigateToInventoryDashboard}
                             >
+                                {user?.role === 'SUPERADMIN' && !selectedWarehouse && (
+                                    <div className="disabled-tooltip">Select warehouse first</div>
+                                )}
                                 <div className="app-icon">
                                     📊
                                 </div>
@@ -252,9 +284,12 @@ const Home = () => {
                         {/* User Management Card */}
                         {hasPermission('users') && (
                             <div 
-                                className="app-card user-management-card" 
+                                className={`app-card user-management-card ${user?.role === 'SUPERADMIN' && !selectedWarehouse ? 'disabled' : ''}`}
                                 onClick={handleNavigateToUserManagement}
                             >
+                                {user?.role === 'SUPERADMIN' && !selectedWarehouse && (
+                                    <div className="disabled-tooltip">Select warehouse first</div>
+                                )}
                                 <div className="app-icon">
                                     👥
                                 </div>
@@ -269,9 +304,12 @@ const Home = () => {
                         {/* Warehouse Management Card */}
                         {hasPermission('warehouses') && (
                             <div 
-                                className="app-card warehouse-management-card" 
+                                className={`app-card warehouse-management-card ${user?.role === 'SUPERADMIN' && !selectedWarehouse ? 'disabled' : ''}`}
                                 onClick={handleNavigateToWarehouseManagement}
                             >
+                                {user?.role === 'SUPERADMIN' && !selectedWarehouse && (
+                                    <div className="disabled-tooltip">Select warehouse first</div>
+                                )}
                                 <div className="app-icon">
                                     🏢
                                 </div>

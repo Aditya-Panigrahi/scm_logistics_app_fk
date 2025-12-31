@@ -95,10 +95,9 @@ const InventoryDashboard = () => {
 
     // Get bin details with package counts
     const getBinDetails = () => {
-        const binsArray = Array.isArray(bins) ? bins : [];
         const shipmentsArray = Array.isArray(shipments) ? shipments : [];
         
-        return binsArray.map(bin => {
+        return bins.map(bin => {
             const binPackages = shipmentsArray.filter(s => s.bin === bin.bin_id);
             const packageCount = binPackages.length;
             const utilizationPercent = (bin.capacity || 0) > 0 ? 
@@ -206,11 +205,11 @@ const InventoryDashboard = () => {
                             >
                                 📦 Bins ({bins.length})
                             </button>
-                            <button 
+                            <button
                                 className={`tab-button ${activeView === 'packages' ? 'active' : ''}`}
                                 onClick={() => setActiveView('packages')}
                             >
-                                📋 Packages ({shipments.length})
+                                📋 Shipments ({shipments.length})
                             </button>
                         </div>
 
@@ -247,7 +246,7 @@ const InventoryDashboard = () => {
                                         <div className="stat-icon">📋</div>
                                         <div className="stat-info">
                                             <h3>{stats.totalPackages}</h3>
-                                            <p>Total Packages</p>
+                                            <p>Total Shipments</p>
                                         </div>
                                     </div>
                                 </div>
@@ -291,7 +290,7 @@ const InventoryDashboard = () => {
                                             View All Bins
                                         </button>
                                         <button className="action-btn" onClick={() => setActiveView('packages')}>
-                                            View All Packages
+                                            View All Shipments
                                         </button>
                                         <button className="action-btn" onClick={loadDashboardData}>
                                             🔄 Refresh Data
@@ -336,7 +335,7 @@ const InventoryDashboard = () => {
                                                 <th>Location</th>
                                                 <th>Status</th>
                                                 <th>Capacity</th>
-                                                <th>Packages</th>
+                                                <th>Shipments</th>
                                                 <th>Utilization</th>
                                             </tr>
                                         </thead>
@@ -374,7 +373,7 @@ const InventoryDashboard = () => {
                             </div>
                         )}
 
-                        {/* Packages View */}
+                        {/* Shipments View */}
                         {activeView === 'packages' && (
                             <div className="packages-section">
                                 {/* Filters */}
@@ -410,7 +409,7 @@ const InventoryDashboard = () => {
                                     </button>
                                 </div>
 
-                                {/* Packages Table */}
+                                {/* Shipments Table */}
                                 <div className="table-container">
                                     <table className="data-table">
                                         <thead>
@@ -454,7 +453,7 @@ const InventoryDashboard = () => {
                                         </tbody>
                                     </table>
                                     {filteredShipments.length === 0 && (
-                                        <div className="no-data">No packages found</div>
+                                        <div className="no-data">No shipments found</div>
                                     )}
                                 </div>
                             </div>

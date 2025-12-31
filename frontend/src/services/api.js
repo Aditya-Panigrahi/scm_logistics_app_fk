@@ -112,6 +112,16 @@ export const outboundAPI = {
             bin_id: binId, 
             expected_bin_id: expectedBinId 
         }),
+    
+    // Get warehouse operators
+    getWarehouseOperators: () => api.get('/outbound/get_warehouse_operators/'),
+    
+    // Assign shipments to operator
+    assignToOperator: (trackingIds, operatorId) =>
+        api.post('/outbound/assign_to_operator/', {
+            tracking_ids: trackingIds,
+            operator_id: operatorId
+        }),
 };
 
 export default api;

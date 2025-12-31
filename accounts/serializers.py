@@ -24,8 +24,8 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class RegisterSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, required=True, validators=[validate_password])
-    password2 = serializers.CharField(write_only=True, required=True)
+    password = serializers.CharField(write_only=True, required=True)
+    password2 = serializers.CharField(write_only=True, required=False)
     
     class Meta:
         model = CustomUser
@@ -35,7 +35,9 @@ class RegisterSerializer(serializers.ModelSerializer):
         ]
     
     def validate(self, attrs):
-        if attrs['password'] != attrs['password2']:
+        # Only validate password match if password2 is provided
+        password2 = attrs.get('password2')
+        if password2 and attrs['password'] != password2:
             raise serializers.ValidationError({"password": "Password fields didn't match."})
         
         # Validate role-warehouse relationship
@@ -50,7 +52,8 @@ class RegisterSerializer(serializers.ModelSerializer):
         return attrs
     
     def create(self, validated_data):
-        validated_data.pop('password2')
+        # Remove password2 if it exists
+        validated_data.pop('password2', None)
         password = validated_data.pop('password')
         
         user = CustomUser.objects.create(**validated_data)
@@ -67,4 +70,4 @@ class LoginSerializer(serializers.Serializer):
 
 class ChangePasswordSerializer(serializers.Serializer):
     old_password = serializers.CharField(required=True, write_only=True)
-    new_password = serializers.CharField(required=True, write_only=True, validators=[validate_password])
+    new_password = serializers.CharField(required=True, write_only=True)
