@@ -1,33 +1,53 @@
-# Quick Reference - Ekart Logistics App
+# Ekart Logistics - Quick Reference Guide
 
-> 🎯 **Need feature details?** See [README.md](README.md) for complete app documentation.
+> 🎯 **Need feature overview?** See [README.md](../README.md) for complete feature list and architecture.
 
-## 📋 Prerequisites
+## 📋 Table of Contents
 
-Before starting, ensure you have:
-- **Python 3.8+** installed
-- **Node.js 14+** and npm installed
-- **Terminal/Command Prompt** access
+1. [Prerequisites](#prerequisites)
+2. [Initial Setup](#initial-setup)
+3. [Starting the Application](#starting-the-application)
+4. [Common Tasks](#common-tasks)
+5. [Troubleshooting](#troubleshooting)
+6. [Useful Commands](#useful-commands)
 
-## 🚀 Initial Setup (First Time Only)
+---
+
+## Prerequisites
+
+**Required Software:**
+- **Python 3.8+** - [Download Python](https://www.python.org/downloads/)
+- **Node.js 14+** - [Download Node.js](https://nodejs.org/)
+- **Terminal/Command Prompt** - Windows PowerShell, Command Prompt, or Terminal
+
+**Verify Installation:**
+```bash
+python --version          # Should show 3.8 or higher
+node --version            # Should show 14 or higher
+npm --version             # Comes with Node.js
+```
+
+---
+
+## Initial Setup
 
 ### Step 1: Backend Setup
 
 ```bash
-# Navigate to project directory
+# Navigate to project root
 cd scm_logistics_app_fk
 
 # Create virtual environment
 python -m venv .venv
 
 # Activate virtual environment
-.venv\Scripts\activate              # Windows
+.venv\Scripts\activate              # Windows PowerShell/CMD
 source .venv/bin/activate           # Mac/Linux
 
-# Install Python dependencies
+# Install dependencies
 pip install -r requirements.txt
 
-# Setup database
+# Run database migrations
 python manage.py migrate
 
 # Create sample bins (optional but recommended)
@@ -35,62 +55,204 @@ python manage.py seed_data
 
 # Create admin user (optional)
 python manage.py createsuperuser
+# Enter username: superadmin (or your choice)
+# Enter password: ******** (your choice)
 ```
 
 ### Step 2: Frontend Setup
 
 ```bash
-# Open new terminal
-cd frontend
+# Open NEW terminal (keep backend terminal open)
+cd scm_logistics_app_fk/frontend
 
 # Install dependencies
 npm install
 ```
 
-## ▶️ Starting the Application
+**✅ Setup Complete!** You're ready to start the application.
 
-### Start Backend Server
+---
 
+## Starting the Application
+
+### Every Time You Start
+
+**Terminal 1 - Backend:**
 ```bash
-# Activate virtual environment (if not already active)
+# Navigate to project root
+cd scm_logistics_app_fk
+
+# Activate virtual environment
 .venv\Scripts\activate              # Windows
 source .venv/bin/activate           # Mac/Linux
 
 # Start Django server
 python manage.py runserver
 ```
+✅ Backend running at: **http://localhost:8000**
 
-✅ **Backend running at:** http://localhost:8000
-
-### Start Frontend Server
-
+**Terminal 2 - Frontend:**
 ```bash
-# In a new terminal
-cd frontend
+# Navigate to frontend folder
+cd scm_logistics_app_fk/frontend
 
-# Start React development server
+# Start React server
 npm start
 ```
+✅ Frontend running at: **http://localhost:3000**
 
-✅ **Frontend running at:** http://localhost:3000
+**Browser will auto-open to http://localhost:3000**
 
-### Verify Setup
+### Verify Everything Works
 
-1. Open browser to http://localhost:3000
-2. You should see the Ekart landing page
-3. Click "Inbound Process" to test the app
+1. Open **http://localhost:3000** in browser
+2. You should see **Ekart logo** and landing page
+3. Try clicking **"Inbound Process"** - should load page
+4. Test **API** directly: **http://localhost:8000/api/bins/**
 
+---
 
-## 🛠️ Troubleshooting Guide
+## Common Tasks
+
+### Create Warehouse (Superadmin Only)
+
+**Option 1: Via Django Shell**
+```bash
+python manage.py shell
+```
+```python
+from accounts.models import Warehouse
+
+# Create warehouse
+Warehouse.objects.create(
+    warehouse_id='WH001',
+    name='Main Warehouse',
+    location='Bangalore, Karnataka',
+    contact_email='bangalore@ekart.com',
+    contact_phone='+91-80-12345678',
+    is_active=True
+)
+
+# Verify
+Warehouse.objects.all()
+exit()
+```
+
+**Option 2: Via Django Admin**
+1. Go to **http://localhost:8000/admin**
+2. Login with superuser credentials
+3. Click **Warehouses** → **Add Warehouse**
+4. Fill form and save
+
+**Option 3: Via UI (if logged in as superadmin)**
+1. Login to app
+2. Navigate to **Warehouse Management** (🏢)
+3. Click **"Create New Warehouse"**
+4. Fill form and save
+
+### Create Users
+
+**Via UI (Recommended):**
+1. Login as **superadmin** or **warehouse_admin**
+2. Navigate to **User Management** (👥)
+3. Click **"Create New User"**
+4. Fill details:
+   - Username, Email, Password
+   - Role: SUPERADMIN | OPERATION_HEAD | WAREHOUSE_ADMIN | OPERATOR
+   - Warehouse assignment
+5. Click **"Create User"**
+
+**Via Django Admin:**
+1. Go to **http://localhost:8000/admin**
+2. Click **Users** → **Add User**
+3. Fill form and save
+
+### Assign Package to Bin (Inbound)
+
+1. Navigate to **Inbound Process**
+2. Enter or scan **Bin ID** (e.g., BIN-001)
+3. Click **"Scan Bin"**
+4. Enter or scan **Tracking ID** (e.g., TRK2025001)
+5. Click **"Assign Package"**
+6. ✅ Package assigned to bin
+
+### Pickup Packages (Outbound - Bin Mode)
+
+1. Navigate to **Outbound Process**
+2. Stay on **"Pickup by Bin"** tab
+3. Enter **Bin ID** and click **"Load Shipments"**
+4. Click **"Start Scanning"** for bulk mode
+5. Scan each package's **Tracking ID**
+6. When done, click **"Dispatch"**
+7. Scan **Bin ID** to confirm
+
+### Create Picklist and Assign to Operator (File Mode)
+
+**Admin/Warehouse Admin:**
+1. Navigate to **Outbound Process**
+2. Switch to **"Pickup by File"** tab
+3. Click **"Choose File"** → Upload CSV/JSON
+4. Review loaded packages (shows Manifested/Direct status)
+5. Click **"Assign to Operator"**
+6. Select operator or **"Auto Assign"** for round-robin
+7. Click **"Confirm Assignment"**
+8. Status changes to **"Picklist Created"**
+
+**Operator:**
+1. Login as operator
+2. View **"My Assigned Shipments"** section
+3. Find package to dispatch
+4. Click **"Dispatch"** button
+5. Scan or enter **Tracking ID** to confirm
+6. ✅ Package dispatched
+
+### Upload Manifest
+
+1. Navigate to **Manifest Creation**
+2. Prepare CSV/JSON file with tracking IDs
+3. Click **"Choose File"** and select file
+4. Click **"Upload Manifest"**
+5. View success/failure report
+6. Packages marked as **"manifested"**
+
+### Reset Database
+
+**⚠️ Warning: This deletes all data!**
+
+```bash
+# Windows
+del db.sqlite3
+python manage.py migrate
+python manage.py seed_data
+python manage.py createsuperuser
+
+# Mac/Linux
+rm db.sqlite3
+python manage.py migrate
+python manage.py seed_data
+python manage.py createsuperuser
+```
+
+### Switch Warehouse (Superadmin)
+
+1. Go to **Home** page
+2. Find **"Select Warehouse"** dropdown (center, above app cards)
+3. Click to expand
+4. Select desired warehouse
+5. All data now filtered to that warehouse
+
+---
+
+## Troubleshooting
 
 ### Backend Issues
 
-#### Issue: "No module named 'django'"
+#### ❌ "No module named 'django'"
 **Cause:** Virtual environment not activated or dependencies not installed
 
-**Solution:**
+**Fix:**
 ```bash
-# Activate virtual environment
+# Activate venv
 .venv\Scripts\activate              # Windows
 source .venv/bin/activate           # Mac/Linux
 
@@ -98,436 +260,472 @@ source .venv/bin/activate           # Mac/Linux
 pip install -r requirements.txt
 ```
 
-#### Issue: "Port 8000 already in use"
-**Cause:** Another Django server is running
+#### ❌ "Port 8000 already in use"
+**Cause:** Another Django server running
 
-**Solution:**
-```bash
-# Find and kill the process (Windows)
+**Fix (Windows):**
+```powershell
+# Find process using port 8000
 netstat -ano | findstr :8000
-taskkill /PID <PID> /F
 
-# Or use different port
-python manage.py runserver 8001
+# Kill process (replace PID with actual number)
+taskkill /PID <PID> /F
 ```
 
-#### Issue: "No such table: inbound_bin"
-**Cause:** Database migrations not applied
+**Fix (Mac/Linux):**
+```bash
+# Find and kill process
+lsof -ti:8000 | xargs kill -9
+```
 
-**Solution:**
+**Alternative:** Use different port
+```bash
+python manage.py runserver 8001
+# Update frontend API URL to http://localhost:8001/api
+```
+
+#### ❌ "No such table: inbound_bin"
+**Cause:** Migrations not applied
+
+**Fix:**
 ```bash
 python manage.py migrate
 ```
 
-#### Issue: Django admin login not working
+#### ❌ Django admin login fails
 **Cause:** Superuser not created
 
-**Solution:**
+**Fix:**
 ```bash
 python manage.py createsuperuser
-# Follow prompts to create username/password
 ```
 
 ### Frontend Issues
 
-#### Issue: "npm: command not found"
+#### ❌ "npm: command not found"
 **Cause:** Node.js not installed
 
-**Solution:**
-- Download and install Node.js from https://nodejs.org/
-- Restart terminal after installation
+**Fix:**
+1. Download Node.js from https://nodejs.org/
+2. Install Node.js
+3. Restart terminal
+4. Verify: `npm --version`
 
-#### Issue: "Cannot find module 'react'"
+#### ❌ "Cannot find module 'react'"
 **Cause:** Dependencies not installed
 
-**Solution:**
+**Fix:**
 ```bash
 cd frontend
 npm install
 ```
 
-#### Issue: "Port 3000 already in use"
-**Cause:** Another React app is running
+#### ❌ "Port 3000 already in use"
+**Cause:** Another React app running
 
-**Solution:**
-- Press `Ctrl+C` in the terminal running React
-- Or kill the process and restart
+**Fix:**
+- Press `Ctrl+C` in React terminal
+- Or kill the process
+- Then: `npm start`
 
-#### Issue: Blank page in browser
-**Cause:** Backend not running or CORS misconfigured
+#### ❌ Blank page in browser
+**Possible causes:**
+1. Backend not running
+2. CORS misconfigured
+3. API URL incorrect
 
-**Solution:**
-1. Ensure backend is running on port 8000
-2. Check browser console for errors
-3. Verify CORS settings in `backend/settings.py`
+**Fix:**
+1. Check backend is running: `http://localhost:8000/api/bins/`
+2. Check browser console (F12) for errors
+3. Verify `frontend/src/services/api.js`:
+   ```javascript
+   baseURL: 'http://localhost:8000/api'
+   ```
+4. Check `backend/settings.py`:
+   ```python
+   CORS_ALLOWED_ORIGINS = [
+       "http://localhost:3000",
+   ]
+   ```
 
 ### CORS Errors
 
-#### Issue: "CORS policy: No 'Access-Control-Allow-Origin' header"
-**Cause:** CORS not configured properly
+#### ❌ "CORS policy: No 'Access-Control-Allow-Origin' header"
+**Cause:** CORS not configured
 
-**Solution:**
+**Fix in `backend/settings.py`:**
 ```python
-# In backend/settings.py, verify:
 INSTALLED_APPS = [
-    'corsheaders',  # Must be here
+    'corsheaders',              # Must be here
+    'django.contrib.admin',
     ...
 ]
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',  # Near top
+    'django.middleware.security.SecurityMiddleware',
     ...
 ]
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",  # Must match frontend URL
+    "http://localhost:3000",    # Must match frontend URL
 ]
 ```
 
-Then restart Django server.
+Restart Django server after changes.
 
-### Camera Scanner Issues
+### Camera/Scanner Issues
 
-#### Issue: Camera not working
+#### ❌ Camera not working
 **Possible causes:**
 - Browser permissions denied
-- Not using HTTPS or localhost
 - Camera in use by another app
+- Not using localhost or HTTPS
 
-**Solutions:**
-1. **Check browser permissions:**
-   - Chrome: Click lock icon → Site settings → Camera → Allow
-   - Firefox: Click shield icon → Permissions → Camera → Allow
+**Fix:**
 
-2. **Use correct URL:**
-   - ✅ Use: `http://localhost:3000`
-   - ❌ Don't use: `http://192.168.x.x:3000` (won't work without HTTPS)
+**1. Check Browser Permissions:**
+- **Chrome:** Click lock icon → Site settings → Camera → Allow
+- **Firefox:** Click shield icon → Permissions → Camera → Allow
+- **Safari:** Safari → Preferences → Websites → Camera → Allow
 
-3. **Close other apps:**
-   - Close Zoom, Teams, or other apps using camera
-   - Restart browser
+**2. Use Correct URL:**
+- ✅ **Use:** `http://localhost:3000`
+- ❌ **Don't use:** `http://192.168.x.x:3000` (requires HTTPS)
 
-4. **Browser compatibility:**
-   - Chrome/Edge: ✅ Fully supported
-   - Firefox: ✅ Supported
-   - Safari: ⚠️ May have restrictions
+**3. Close Other Apps:**
+- Close Zoom, Teams, Skype, or other apps using camera
+- Restart browser
 
-#### Issue: Scanner modal opens but doesn't detect codes
-**Solutions:**
-- Ensure good lighting
-- Hold code steady and straight
-- Try different distance from camera
-- Use manual entry as fallback
+**4. Browser Compatibility:**
+- **Chrome/Edge:** ✅ Fully supported
+- **Firefox:** ✅ Supported
+- **Safari:** ⚠️ May have restrictions (works on localhost)
+
+**5. Fallback:** Always use manual entry as alternative
+
+#### ❌ Scanner detects but doesn't recognize codes
+**Fix:**
+- Ensure **good lighting**
+- Hold code **steady and straight**
+- Try **different distance** from camera (6-12 inches works best)
+- Use **high-quality** printed/displayed codes
+- Try **manual entry** if scanner fails
 
 ### Database Issues
 
-#### Issue: "database is locked"
+#### ❌ "database is locked"
 **Cause:** SQLite limitation (concurrent writes)
 
-**Solution:**
-- Wait a few seconds and retry
-- For production, use PostgreSQL instead
+**Fix:**
+- Wait a few seconds
+- Retry operation
+- For production, use PostgreSQL
 
-#### Issue: Want to reset database
-**Solution:**
+#### ❌ Migrations conflict
+**Fix:**
 ```bash
-# Delete database file
-rm db.sqlite3              # Mac/Linux
-del db.sqlite3             # Windows
+# Delete migrations
+rm -r accounts/migrations/     # Mac/Linux
+rm -r inbound/migrations/
+rmdir /s accounts\migrations   # Windows
+rmdir /s inbound\migrations
 
-# Recreate database
+# Recreate
+python manage.py makemigrations accounts
+python manage.py makemigrations inbound
 python manage.py migrate
-python manage.py seed_data
-python manage.py createsuperuser
 ```
 
 ### Connection Issues
 
-#### Issue: Frontend can't connect to backend
+#### ❌ Frontend can't connect to backend
 **Checklist:**
-1. ✅ Backend running on port 8000?
+
+1. **✅ Is backend running?**
    ```bash
    curl http://localhost:8000/api/bins/
+   # Should return JSON or error page
    ```
 
-2. ✅ Frontend configured correctly?
-   - Check `frontend/src/services/api.js`
-   - Should have: `const API_BASE_URL = 'http://localhost:8000/api';`
-
-3. ✅ Firewall not blocking?
-   - Temporarily disable firewall to test
-   - Add exception for Python/Node.js
-
-4. ✅ CORS configured?
-   - See CORS section above
-
-## 💡 Quick Tips & Shortcuts
-
-### Development Workflow
-
-1. **Keep both servers running** in separate terminals
-2. **Use browser DevTools** (F12) to debug issues
-3. **Check terminal logs** for backend errors
-4. **Use Django admin** (http://localhost:8000/admin) to view data
-
-### Testing Data
-
-**Sample Bin IDs:** (after running `seed_data`)
-```
-BIN-001, BIN-002, BIN-003, ... BIN-010
-```
-
-**Sample Tracking IDs format:**
-```
-TRK2025001, TRK2025002, PKG-0001, etc.
-```
-
-### Useful Commands
-
-```bash
-# View all bins in database
-python manage.py shell
->>> from inbound.models import Bin
->>> Bin.objects.all()
-
-# Clear all shipments
->>> from inbound.models import Shipment
->>> Shipment.objects.all().delete()
-
-# Check Django version
-python -m django --version
-
-# Check React version
-npm list react
-```
-
-## 📱 Camera Scanner Quick Guide
-
-### First Time Setup
-1. Click camera icon (📷) next to any input field
-2. Browser asks for camera permission
-3. Click **"Allow"**
-4. Scanner ready!
-
-### Scanning Process
-1. Click camera icon
-2. Position barcode/QR code in frame
-3. Scanner auto-detects and fills input
-4. Modal closes automatically
-
-### Supported Formats
-✅ QR Codes  
-✅ Barcodes (EAN-13, EAN-8, UPC-A, UPC-E)  
-✅ Code 128, Code 39  
-✅ ITF, Codabar
-
-### Manual Entry Fallback
-- Scanner optional - manual entry always works
-- Use keyboard or copy-paste
-- Same validation applies
-
-## 🔄 Common Workflows
-
-
-## 🔄 Common Workflows
-
-### Inbound: Receive Package
-
-1. Open **Inbound Process** from landing page
-2. **Scan/Enter bin ID** → Click "Validate Bin"
-3. **Scan/Enter tracking ID** → Click "Validate Package"
-4. Click **"Assign Package to Bin"**
-5. Success! Package stored
-
-### Outbound: Pick Package
-
-**Method 1: Individual Pickup**
-1. Open **Outbound Process** → "Search Package" tab
-2. Enter tracking ID to find bin location
-3. Go to **"Pick Up Package"** tab
-4. Enter tracking ID and bin ID
-5. Click **"Pick Up Package"**
-6. Package removed from bin
-
-**Method 2: Batch Pickup**
-1. Go to **"Pickup by Bin"** tab
-2. Enter bin ID → Load packages
-3. Verify each package
-4. Dispatch all at once
-
-### Manifest: Bulk Upload
-
-1. Open **Manifest Creation**
-2. Prepare CSV file with tracking IDs:
-   ```csv
-   tracking_id
-   TRK2025001
-   TRK2025002
+2. **✅ Is frontend API URL correct?**
+   Check `frontend/src/services/api.js`:
+   ```javascript
+   baseURL: 'http://localhost:8000/api'
    ```
-3. Click **"Choose File"** → Select CSV
-4. Click **"Upload & Process"**
-5. View success/failure report
 
-## 📊 Accessing Admin Panel
+3. **✅ Is CORS configured?**
+   Check `backend/settings.py` (see CORS section above)
+
+4. **✅ Firewall blocking?**
+   - Windows: Check Windows Defender Firewall
+   - Mac: System Preferences → Security & Privacy → Firewall
+   - Temporarily disable to test
+
+5. **✅ Check browser console (F12)**
+   - Look for error messages
+   - Check Network tab for failed requests
+
+---
+
+## Useful Commands
+
+### Django Commands
 
 ```bash
-# First time: Create superuser
+# Run server
+python manage.py runserver
+
+# Run on different port
+python manage.py runserver 8001
+
+# Apply database changes
+python manage.py migrate
+
+# Create new migrations
+python manage.py makemigrations
+
+# Create admin user
 python manage.py createsuperuser
 
-# Visit admin panel
-http://localhost:8000/admin
+# Generate sample bins
+python manage.py seed_data
+
+# Open Django shell
+python manage.py shell
+
+# Show migrations status
+python manage.py showmigrations
+
+# Collect static files (for production)
+python manage.py collectstatic
 ```
 
-**Use admin to:**
-- View all bins and packages
-- Manually edit data
-- Check audit logs
-- Monitor database
+### Django Shell Examples
 
-## 🔐 Configuration Notes
-
-### Development vs Production
-
-**Current settings (Development):**
-```python
-DEBUG = True
-SECRET_KEY = 'dev-key-change-in-production'
-ALLOWED_HOSTS = []
-CORS_ALLOWED_ORIGINS = ["http://localhost:3000"]
+```bash
+python manage.py shell
 ```
 
-**For Production, change:**
 ```python
-DEBUG = False
-SECRET_KEY = 'your-secret-key-here'  # Generate new one
-ALLOWED_HOSTS = ['yourdomain.com']
-CORS_ALLOWED_ORIGINS = ["https://yourdomain.com"]
+# View all users
+from accounts.models import CustomUser
+CustomUser.objects.all()
 
-# Use PostgreSQL instead of SQLite
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        ...
-    }
+# View all warehouses
+from accounts.models import Warehouse
+Warehouse.objects.all()
+
+# View all bins
+from inbound.models import Bin
+Bin.objects.all()
+
+# View all shipments
+from inbound.models import Shipment
+Shipment.objects.all()
+
+# Count shipments by status
+Shipment.objects.values('status').annotate(count=Count('status'))
+
+# Delete all shipments (CAREFUL!)
+Shipment.objects.all().delete()
+
+# Exit shell
+exit()
+```
+
+### NPM Commands
+
+```bash
+# Install dependencies
+npm install
+
+# Start development server
+npm start
+
+# Build for production
+npm run build
+
+# Run tests
+npm test
+
+# Check for vulnerabilities
+npm audit
+
+# Fix vulnerabilities
+npm audit fix
+```
+
+### Git Commands (Optional)
+
+```bash
+# Initialize git
+git init
+
+# Add all files
+git add .
+
+# Commit
+git commit -m "Initial commit"
+
+# View status
+git status
+
+# View changes
+git diff
+```
+
+---
+
+## Sample Data
+
+### Sample Bin IDs (after `seed_data`)
+```
+BIN-001, BIN-002, BIN-003, BIN-004, BIN-005
+BIN-006, BIN-007, BIN-008, BIN-009, BIN-010
+```
+
+### Sample Tracking ID Formats
+```
+TRK2025001
+TRK2025002
+PKG-0001
+PKG-0002
+SHIP123456
+```
+
+### CSV Format for Manifest Upload
+```csv
+tracking_id
+TRK2025001
+TRK2025002
+TRK2025003
+```
+
+### JSON Format for Picklist Upload
+```json
+{
+  "tracking_ids": [
+    "TRK2025001",
+    "TRK2025002",
+    "TRK2025003"
+  ]
 }
 ```
 
-## 📁 Important Files
+---
 
-| File | Purpose |
-|------|---------|
-| `requirements.txt` | Python dependencies list |
-| `manage.py` | Django management script |
-| `db.sqlite3` | SQLite database file |
-| `backend/settings.py` | Django configuration |
-| `frontend/src/services/api.js` | API endpoint configuration |
-| `sample_manifest.csv` | Example manifest format |
+## Development Tips
 
-## 🎯 Status Flow Reference
+### Best Practices
 
-```
-Package Lifecycle:
-manifested → putaway → picklist-created → picked → dispatched
-```
+1. **Keep both servers running** in separate terminals
+2. **Use browser DevTools** (F12) to debug
+   - Console tab for errors
+   - Network tab for API calls
+3. **Check terminal logs** for backend errors
+4. **Use Django admin** for direct database access
+5. **Git commit regularly** (if using version control)
 
-**Status Definitions:**
-- **manifested**: Registered with delivery partner
-- **putaway**: Stored in bin
-- **picklist-created**: Marked for pickup
-- **picked**: Removed from bin
-- **dispatched**: Sent for delivery
+### Debugging Workflow
 
-## 🌐 Network Access
+**Frontend Issue:**
+1. Open browser console (F12)
+2. Check Console tab for errors
+3. Check Network tab for failed API calls
+4. Verify API response in Network → Response tab
 
-### Local Development
-- Backend: `http://localhost:8000`
-- Frontend: `http://localhost:3000`
-- Admin: `http://localhost:8000/admin`
+**Backend Issue:**
+1. Check Django terminal for error traceback
+2. Use Django admin to verify database state
+3. Use Django shell to test queries
+4. Check `backend/settings.py` configuration
 
-### Mobile/Other Devices (Same Network)
+### Testing API with cURL
 
-**Find your IP:**
 ```bash
-# Windows
-ipconfig
+# Get bins
+curl http://localhost:8000/api/bins/
 
-# Mac/Linux
-ifconfig
+# Login (get JWT token)
+curl -X POST http://localhost:8000/api/accounts/auth/login/ \
+  -H "Content-Type: application/json" \
+  -d '{"username":"superadmin","password":"yourpassword"}'
+
+# Use token in request
+curl http://localhost:8000/api/bins/ \
+  -H "Authorization: Bearer <access_token>"
 ```
 
-**Access from phone:**
-- Backend: `http://192.168.1.X:8000`
-- Frontend: `http://192.168.1.X:3000`
+### Testing API with Postman
 
-⚠️ **Note:** Camera scanner may not work without HTTPS on mobile devices.
+1. Download **Postman** from https://www.postman.com/
+2. Create collection "Ekart Logistics"
+3. Add requests:
+   - **Login:** POST `http://localhost:8000/api/accounts/auth/login/`
+   - **Get Bins:** GET `http://localhost:8000/api/bins/`
+4. Use token from login response in Authorization header
 
-## 📚 Additional Resources
+---
 
-- **Complete Documentation:** [README.md](README.md)
-- **Sample Files:** 
-  - [sample_manifest.csv](sample_manifest.csv) - Manifest format example
-  - [upload_manifest.csv](upload_manifest.csv) - Picklist format
-- **API Testing:** Use Django browsable API at `http://localhost:8000/api/`
+## FAQ
 
-## 🆘 Still Having Issues?
+**Q: Do I need to run seed_data every time?**
+A: No, only once during initial setup. Data persists in `db.sqlite3`.
 
-1. **Check terminal logs** for error messages
-2. **Open browser DevTools** (F12) → Console tab
-3. **Verify all prerequisites** installed
-4. **Try restarting** both servers
-5. **Check this guide** for specific error messages
+**Q: Can I run this in production?**
+A: SQLite is fine for small deployments. For production, consider PostgreSQL and proper hosting.
 
-## 🎓 Learning Resources
+**Q: How do I deploy this?**
+A: Backend can deploy to Heroku, AWS, or any Python hosting. Frontend can deploy to Netlify, Vercel, or serve static build.
 
-- **Django:** https://docs.djangoproject.com/
+**Q: Can multiple users access simultaneously?**
+A: Yes, but SQLite has limitations with concurrent writes. Use PostgreSQL for heavy traffic.
+
+**Q: How do I change the port?**
+A: Backend: `python manage.py runserver <port>`. Frontend: Set `PORT=3001` env variable.
+
+**Q: Where is data stored?**
+A: `db.sqlite3` file in project root. Backup this file to preserve data.
+
+**Q: Can I use MySQL/PostgreSQL instead of SQLite?**
+A: Yes, update `DATABASES` in `backend/settings.py` and install appropriate Python driver.
+
+**Q: How do I update Python packages?**
+A: `pip install --upgrade -r requirements.txt`
+
+**Q: How do I update NPM packages?**
+A: `cd frontend && npm update`
+
+---
+
+## Additional Resources
+
+- **Django Docs:** https://docs.djangoproject.com/
 - **Django REST Framework:** https://www.django-rest-framework.org/
-- **React:** https://react.dev/
-- **React Router:** https://reactrouter.com/
+- **React Docs:** https://react.dev/
+- **JWT Auth:** https://django-rest-framework-simplejwt.readthedocs.io/
 
 ---
 
-**Quick Reference Version 1.0** | Last Updated: December 2025
+## Getting Help
 
-1. **manifested**: Created via manifest upload
-2. **putaway**: Assigned to bin (inbound)
-3. **picklist-created**: Added to picklist (file upload)
-4. **picked**: Confirmed pickup (verification)
-5. **dispatched**: Final dispatch confirmed
+**If you're stuck:**
+1. Check this guide's troubleshooting section
+2. Check browser console (F12) for errors
+3. Check Django terminal for error traceback
+4. Verify both servers are running
+5. Try restarting both servers
+6. Check [README.md](../README.md) for architecture details
 
-## 🐛 Common Issues
-
-**Issue**: Camera permission denied  
-**Solution**: Reset permissions in browser settings
-
-**Issue**: Package already exists  
-**Solution**: Use a unique tracking ID or check if already in system
-
-**Issue**: Bin not available  
-**Solution**: Check bin status - ensure it's not full or in maintenance
-
-**Issue**: CORS errors  
-**Solution**: Ensure both Django (8000) and React (3000) servers are running
-
-**Issue**: Virtual environment not activated  
-**Solution**: Run `.venv\Scripts\activate` before Django commands
-
-**Issue**: Module not found  
-**Solution**: Install requirements: `pip install -r requirements.txt`
-
-## 💡 Pro Tips
-
-- Use keyboard shortcuts: Tab to navigate
-- Scanner works best with good lighting
-- Print QR codes for faster scanning
-- Test on mobile for best camera experience
-- Check browser console for errors
-
-## 📞 Support
-
-Check the console for detailed error messages:
-- Browser: F12 → Console
-- Backend: Terminal output
+**Common First-Time Issues:**
+- ✅ Virtual environment not activated → Run activate command
+- ✅ Dependencies not installed → Run `pip install` / `npm install`
+- ✅ Migrations not run → Run `python manage.py migrate`
+- ✅ Wrong directory → Ensure you're in project root
 
 ---
 
-**Built with ❤️ using Django & React**
+**🎉 You're all set! Happy coding!**
+
+For feature details and architecture, see [README.md](../README.md)
