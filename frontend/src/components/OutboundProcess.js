@@ -48,6 +48,26 @@ const OutboundProcess = () => {
     const [showAssignModal, setShowAssignModal] = useState(false);
     const [selectedOperator, setSelectedOperator] = useState(null);
     const [assignmentLoading, setAssignmentLoading] = useState(false);
+    
+    // Assigned shipments state (for operators)
+    const [assignedShipments, setAssignedShipments] = useState([]);
+    const [assignedLoading, setAssignedLoading] = useState(false);
+    const [assignedError, setAssignedError] = useState(null);
+    const [assignedMessage, setAssignedMessage] = useState(null);
+    
+    // Dispatch assigned shipment state
+    const [showAssignedDispatchModal, setShowAssignedDispatchModal] = useState(false);
+    const [currentAssignedShipment, setCurrentAssignedShipment] = useState(null);
+    const [scannedAssignedTrackingId, setScannedAssignedTrackingId] = useState('');
+    const [assignedDispatchError, setAssignedDispatchError] = useState(null);
+    const [showAssignedDispatchScanner, setShowAssignedDispatchScanner] = useState(false);
+    
+    // Bulk scanning state
+    const [showBulkScanModal, setShowBulkScanModal] = useState(false);
+    const [bulkScanTrackingId, setBulkScanTrackingId] = useState('');
+    const [bulkScanError, setBulkScanError] = useState(null);
+    const [bulkScanSuccess, setBulkScanSuccess] = useState(null);
+    const [showBulkScanner, setShowBulkScanner] = useState(false);
 
     // Reset state when warehouse changes
     useEffect(() => {
@@ -60,8 +80,17 @@ const OutboundProcess = () => {
         setFilePackages([]);
         setFileError(null);
         setFileMessage(null);
-        loadOperators();
-    }, [selectedWarehouse]);
+        
+        // Load operators for admins/managers
+        if (user?.role !== 'OPERATOR') {
+            loadOperators();
+        }
+        
+        // Load assigned shipments for operators
+        if (user?.role === 'OPERATOR') {
+            loadAssignedShipments();
+        }
+    }, [selectedWarehouse, user]);
     
     // Load operators for the warehouse
     const loadOperators = async () => {
@@ -72,6 +101,23 @@ const OutboundProcess = () => {
             }
         } catch (error) {
             console.error('Failed to load operators:', error);
+        }
+    };
+    
+    // Load assigned shipments for operators
+    const loadAssignedShipments = async () => {
+        setAssignedLoading(true);
+        setAssignedError(null);
+        try {
+            const response = await outboundAPI.getAssignedShipments();
+            if (response.data.success) {
+                setAssignedShipments(response.data.shipments);
+            }
+        } catch (error) {
+            console.error('Failed to load assigned shipments:', error);
+            setAssignedError(error.response?.data?.error || 'Failed to load assigned shipments');
+        } finally {
+            setAssignedLoading(false);
         }
     };
 
@@ -255,6 +301,47 @@ const OutboundProcess = () => {
         document.getElementById('fileInput').value = '';
     };
     
+    // Handle assigned shipment dispatch
+    const handleOpenAssignedDispatchModal = (shipment) => {
+        setCurrentAssignedShipment(shipment);
+        setScannedAssignedTrackingId('');
+        setAssignedDispatchError(null);
+        setShowAssignedDispatchModal(true);
+    };
+    
+    const handleConfirmAssignedDispatch = async () => {
+        if (!scannedAssignedTrackingId.trim()) {
+            setAssignedDispatchError('Please scan or enter the tracking ID');
+            return;
+        }
+        
+        if (scannedAssignedTrackingId.trim().toUpperCase() !== currentAssignedShipment.tracking_id) {
+            setAssignedDispatchError('❌ Tracking ID mismatch! Please scan the correct shipment.');
+            return;
+        }
+        
+        try {
+            const response = await outboundAPI.dispatchAssignedShipment(
+                currentAssignedShipment.tracking_id,
+                scannedAssignedTrackingId
+            );
+            
+            if (response.data.success) {
+                setAssignedMessage(response.data.message);
+                setShowAssignedDispatchModal(false);
+                setScannedAssignedTrackingId('');
+                
+                // Refresh assigned shipments list
+                await loadAssignedShipments();
+                
+                setTimeout(() => setAssignedMessage(null), 3000);
+            }
+        } catch (error) {
+            console.error('Dispatch error:', error);
+            setAssignedDispatchError(error.response?.data?.error || 'Failed to dispatch shipment');
+        }
+    };
+    
     // Handle operator assignment
     const handleOpenAssignModal = () => {
         setShowAssignModal(true);
@@ -268,19 +355,72 @@ const OutboundProcess = () => {
         }
         
         setAssignmentLoading(true);
+        setFileError(null); // Clear any previous errors
+        setFileMessage(null); // Clear any previous messages
+        
         try {
             const trackingIds = filePackages.map(pkg => pkg.tracking_id);
-            const response = await outboundAPI.assignToOperator(trackingIds, selectedOperator);
+            
+            let response;
+            let isAutoAssign = false;
+            
+            if (selectedOperator === 'auto') {
+                // Auto-assign mode
+                isAutoAssign = true;
+                response = await outboundAPI.assignToOperator(trackingIds, 'auto');
+                
+                console.log('Auto-assign response:', response.data);
+                
+                if (response.data.success) {
+                    const summary = response.data.assignments_summary;
+                    const summaryLines = Object.entries(summary)
+                        .map(([username, count]) => `  • ${username}: ${count} shipment${count > 1 ? 's' : ''}`)
+                        .join('\n');
+                    
+                    const message = `✓ Auto-assigned ${response.data.assigned_count} shipments\n\nDistribution:\n${summaryLines}`;
+                    console.log('Setting message:', message);
+                    setFileMessage(message);
+                    
+                    // Auto-dismiss after 6 seconds for auto-assign
+                    setTimeout(() => {
+                        setFileMessage(null);
+                    }, 6000);
+                }
+            } else {
+                // Manual assignment to specific operator
+                response = await outboundAPI.assignToOperator(trackingIds, selectedOperator);
+                
+                if (response.data.success) {
+                    setFileMessage(`✓ Successfully assigned ${response.data.assigned_count} shipments to ${response.data.operator.name}`);
+                    
+                    // Auto-dismiss after 3 seconds for manual assign
+                    setTimeout(() => {
+                        setFileMessage(null);
+                    }, 3000);
+                }
+            }
             
             if (response.data.success) {
-                setFileMessage(`✓ Successfully assigned ${response.data.assigned_count} shipments to ${response.data.operator.name}`);
                 setShowAssignModal(false);
-                // Update packages to show they're assigned
-                setFilePackages(filePackages.map(pkg => ({
-                    ...pkg,
-                    assigned: true,
-                    assigned_operator: response.data.operator
-                })));
+                
+                // Update packages to show they're assigned with picklist-created status
+                if (isAutoAssign) {
+                    // For auto-assign, mark as assigned with picklist-created status
+                    setFilePackages(filePackages.map(pkg => ({
+                        ...pkg,
+                        status: 'picklist-created',
+                        assigned: true,
+                        assigned_operator: { username: 'Auto-assigned' }
+                    })));
+                } else {
+                    // For manual assign, set the specific operator with picklist-created status
+                    setFilePackages(filePackages.map(pkg => ({
+                        ...pkg,
+                        status: 'picklist-created',
+                        assigned: true,
+                        assigned_operator: response.data.operator
+                    })));
+                }
             }
         } catch (error) {
             console.error('Assignment error:', error);
@@ -388,6 +528,76 @@ const OutboundProcess = () => {
             }
         }
     };
+    
+    // Bulk scanning handlers
+    const handleOpenBulkScanModal = () => {
+        setShowBulkScanModal(true);
+        setBulkScanTrackingId('');
+        setBulkScanError(null);
+        setBulkScanSuccess(null);
+    };
+    
+    const handleBulkScanPickup = async () => {
+        const scannedId = bulkScanTrackingId.trim().toUpperCase();
+        
+        if (!scannedId) {
+            setBulkScanError('Please scan or enter a tracking ID');
+            return;
+        }
+        
+        // Check if tracking ID exists in current bin packages
+        const packageInBin = packages.find(pkg => pkg.tracking_id === scannedId);
+        
+        if (!packageInBin) {
+            setBulkScanError(`❌ Tracking ID ${scannedId} not found in this bin`);
+            setBulkScanTrackingId('');
+            return;
+        }
+        
+        // Check if already picked
+        if (packageInBin.status === 'picked') {
+            setBulkScanError(`⚠️ ${scannedId} already picked`);
+            setBulkScanTrackingId('');
+            return;
+        }
+        
+        // Check if assigned to another operator
+        if (packageInBin.assigned_operator && packageInBin.assigned_operator.id !== user?.id) {
+            const operatorName = packageInBin.assigned_operator.name || packageInBin.assigned_operator.username;
+            setBulkScanError(`🔒 ${scannedId} is assigned to ${operatorName}`);
+            setBulkScanTrackingId('');
+            return;
+        }
+        
+        try {
+            const response = await api.post('/outbound/pickup_package/', {
+                tracking_id: scannedId,
+                expected_tracking_id: scannedId
+            });
+            
+            if (response.data.success) {
+                // Update package status in the list
+                setPackages(packages.map(pkg => 
+                    pkg.tracking_id === scannedId 
+                        ? { ...pkg, status: 'picked' }
+                        : pkg
+                ));
+                
+                setBulkScanSuccess(`✓ ${scannedId} picked successfully`);
+                setBulkScanError(null);
+                setBulkScanTrackingId('');
+                
+                // Auto-clear success message after 2 seconds
+                setTimeout(() => {
+                    setBulkScanSuccess(null);
+                }, 2000);
+            }
+        } catch (error) {
+            console.error('Pickup error:', error);
+            setBulkScanError(error.response?.data?.errors?.tracking_id?.[0] || 'Failed to pick up package');
+            setBulkScanTrackingId('');
+        }
+    };
 
     const pickedCount = packages.filter(pkg => pkg.status === 'picked').length;
     const totalCount = packages.length;
@@ -420,6 +630,78 @@ const OutboundProcess = () => {
 
             {/* Main Content */}
             <div className="outbound-content">
+                {/* Assigned Shipments Section for Operators */}
+                {user?.role === 'OPERATOR' && (
+                    <div className="assigned-shipments-section">
+                        <div className="assigned-card">
+                            <div className="card-header">
+                                <h2>📋 My Assigned Shipments</h2>
+                                <p>Shipments assigned to you for dispatch</p>
+                            </div>
+                            
+                            <div className="card-body">
+                                {assignedLoading ? (
+                                    <div className="loading-message">Loading assigned shipments...</div>
+                                ) : assignedError ? (
+                                    <div className="error-box">{assignedError}</div>
+                                ) : assignedShipments.length === 0 ? (
+                                    <div className="empty-state">
+                                        <p>✓ No shipments assigned to you at the moment</p>
+                                    </div>
+                                ) : (
+                                    <>
+                                        {assignedMessage && (
+                                            <div className="success-box">{assignedMessage}</div>
+                                        )}
+                                        <div className="assigned-stats">
+                                            <span className="stat-badge">
+                                                Total Assigned: <strong>{assignedShipments.length}</strong>
+                                            </span>
+                                        </div>
+                                        <div className="table-container">
+                                            <table className="packages-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>#</th>
+                                                        <th>Tracking ID</th>
+                                                        <th>Bin ID</th>
+                                                        <th>Bin Location</th>
+                                                        <th>Status</th>
+                                                        <th>Action</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {assignedShipments.map((shipment, index) => (
+                                                        <tr key={shipment.tracking_id}>
+                                                            <td>{index + 1}</td>
+                                                            <td className="tracking-cell">{shipment.tracking_id}</td>
+                                                            <td><strong>{shipment.bin_id || 'N/A'}</strong></td>
+                                                            <td>{shipment.bin_location || 'N/A'}</td>
+                                                            <td>
+                                                                <span className={`status-badge ${shipment.status}`}>
+                                                                    {shipment.status}
+                                                                </span>
+                                                            </td>
+                                                            <td>
+                                                                <button
+                                                                    className="dispatch-button"
+                                                                    onClick={() => handleOpenAssignedDispatchModal(shipment)}
+                                                                >
+                                                                    🚚 Dispatch
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
+                
                 <div className="outbound-card">
                     <div className="card-header">
                         <h2>🚚 Outbound Process - Shipment Pickup</h2>
@@ -501,8 +783,15 @@ const OutboundProcess = () => {
                                     <div className="bin-details">
                                         <h3>📍 Bin: {binInfo.bin_id}</h3>
                                         <p>Location: {binInfo.location}</p>
-                                        <p>Progress: {pickedCount}/{totalCount} shipments picked</p>\n                                    </div>
+                                        <p>Progress: {pickedCount}/{totalCount} shipments picked</p>
+                                    </div>
                                     <div className="action-buttons">
+                                        <button 
+                                            className="bulk-scan-button"
+                                            onClick={handleOpenBulkScanModal}
+                                        >
+                                            📱 Start Scanning
+                                        </button>
                                         <button 
                                             className="dispatch-button"
                                             onClick={handleOpenDispatchModal}
@@ -685,9 +974,16 @@ const OutboundProcess = () => {
                                                     <td className="tracking-cell">{pkg.tracking_id}</td>
                                                     <td>{pkg.bin_id || 'N/A'}</td>
                                                     <td>
-                                                        <span className={`status-badge ${pkg.assigned ? 'assigned' : 'picklist-created'}`}>
-                                                            {pkg.assigned ? `✓ Assigned to ${pkg.assigned_operator?.username || 'Operator'}` : '📋 Ready'}
+                                                        <span className={`status-badge ${pkg.status || 'putaway'}`}>
+                                                            {pkg.status === 'picklist-created' ? '📋 Picklist Created' : 
+                                                             pkg.status === 'picked' ? '✓ Picked' : 
+                                                             pkg.manifested ? '📋 Manifested' : '🆕 Direct'}
                                                         </span>
+                                                        {pkg.assigned_operator && (
+                                                            <span className="operator-badge">
+                                                                👤 {pkg.assigned_operator.username}
+                                                            </span>
+                                                        )}
                                                     </td>
                                                 </tr>
                                             ))}
@@ -816,6 +1112,66 @@ const OutboundProcess = () => {
                     </div>
                 </div>
             )}
+            
+            {/* Assigned Shipment Dispatch Modal */}
+            {showAssignedDispatchModal && (
+                <div className="modal-overlay" onClick={() => setShowAssignedDispatchModal(false)}>
+                    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h3>Confirm Shipment Dispatch</h3>
+                            <button className="close-button" onClick={() => setShowAssignedDispatchModal(false)}>×</button>
+                        </div>
+                        <div className="modal-body">
+                            <p className="modal-instruction">
+                                Please scan or enter tracking ID to confirm dispatch:
+                            </p>
+                            <p className="expected-value">
+                                <strong>Expected: {currentAssignedShipment?.tracking_id}</strong>
+                            </p>
+                            <p className="dispatch-info">
+                                Bin: <strong>{currentAssignedShipment?.bin_id || 'N/A'}</strong> | 
+                                Location: <strong>{currentAssignedShipment?.bin_location || 'N/A'}</strong>
+                            </p>
+                            
+                            <div className="input-group">
+                                <input
+                                    type="text"
+                                    className="input-field"
+                                    placeholder="Scan or enter Tracking ID"
+                                    value={scannedAssignedTrackingId}
+                                    onChange={(e) => setScannedAssignedTrackingId(e.target.value.toUpperCase())}
+                                    onKeyPress={(e) => {
+                                        if (e.key === 'Enter' && scannedAssignedTrackingId.trim()) {
+                                            handleConfirmAssignedDispatch();
+                                        }
+                                    }}
+                                    autoFocus
+                                />
+                                <button 
+                                    className="scan-button"
+                                    onClick={() => setShowAssignedDispatchScanner(true)}
+                                >
+                                    📷 Scan
+                                </button>
+                            </div>
+
+                            {assignedDispatchError && (
+                                <div className="error-box">
+                                    {assignedDispatchError}
+                                </div>
+                            )}
+                        </div>
+                        <div className="modal-footer">
+                            <button className="cancel-button" onClick={() => setShowAssignedDispatchModal(false)}>
+                                Cancel
+                            </button>
+                            <button className="confirm-button" onClick={handleConfirmAssignedDispatch}>
+                                🚚 Confirm Dispatch
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* File Dispatch Modal */}
             {/* Assign to Operator Modal */}
@@ -835,28 +1191,47 @@ const OutboundProcess = () => {
                                 {operators.length === 0 ? (
                                     <p className="no-operators">No operators available for this warehouse</p>
                                 ) : (
-                                    operators.map((operator) => (
+                                    <>
+                                        {/* Auto Assignment Option */}
                                         <div 
-                                            key={operator.id}
-                                            className={`operator-card ${selectedOperator === operator.id ? 'selected' : ''}`}
-                                            onClick={() => setSelectedOperator(operator.id)}
+                                            className={`operator-card auto-card ${selectedOperator === 'auto' ? 'selected' : ''}`}
+                                            onClick={() => setSelectedOperator('auto')}
                                         >
-                                            <div className="operator-avatar">
-                                                {operator.first_name?.charAt(0) || operator.username.charAt(0)}
+                                            <div className="operator-avatar auto-avatar">
+                                                🔄
                                             </div>
                                             <div className="operator-info">
-                                                <div className="operator-name">
-                                                    {operator.first_name && operator.last_name 
-                                                        ? `${operator.first_name} ${operator.last_name}`
-                                                        : operator.username}
-                                                </div>
-                                                <div className="operator-username">@{operator.username}</div>
+                                                <div className="operator-name">Auto Assign</div>
                                             </div>
-                                            {selectedOperator === operator.id && (
+                                            {selectedOperator === 'auto' && (
                                                 <div className="selected-indicator">✓</div>
                                             )}
                                         </div>
-                                    ))
+                                        
+                                        {/* Individual Operators */}
+                                        {operators.map((operator) => (
+                                            <div 
+                                                key={operator.id}
+                                                className={`operator-card ${selectedOperator === operator.id ? 'selected' : ''}`}
+                                                onClick={() => setSelectedOperator(operator.id)}
+                                            >
+                                                <div className="operator-avatar">
+                                                    {operator.first_name?.charAt(0) || operator.username.charAt(0)}
+                                                </div>
+                                                <div className="operator-info">
+                                                    <div className="operator-name">
+                                                        {operator.first_name && operator.last_name 
+                                                            ? `${operator.first_name} ${operator.last_name}`
+                                                            : operator.username}
+                                                    </div>
+                                                    <div className="operator-username">@{operator.username}</div>
+                                                </div>
+                                                {selectedOperator === operator.id && (
+                                                    <div className="selected-indicator">✓</div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </>
                                 )}
                             </div>
                         </div>
@@ -870,6 +1245,82 @@ const OutboundProcess = () => {
                                 disabled={!selectedOperator || assignmentLoading}
                             >
                                 {assignmentLoading ? '⏳ Assigning...' : '✓ Confirm Assignment'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Bulk Scanning Modal */}
+            {showBulkScanModal && (
+                <div className="modal-overlay" onClick={() => setShowBulkScanModal(false)}>
+                    <div className="modal-content bulk-scan-modal" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h3>📱 Bulk Package Scanning</h3>
+                            <button className="close-button" onClick={() => setShowBulkScanModal(false)}>×</button>
+                        </div>
+                        <div className="modal-body">
+                            <div className="scan-progress">
+                                <div className="progress-info">
+                                    <span className="progress-label">Progress:</span>
+                                    <span className="progress-count">{pickedCount} / {totalCount} picked</span>
+                                </div>
+                                <div className="progress-bar-container">
+                                    <div 
+                                        className="progress-bar-fill" 
+                                        style={{ width: `${(pickedCount / totalCount) * 100}%` }}
+                                    ></div>
+                                </div>
+                            </div>
+                            
+                            <p className="modal-instruction">
+                                Scan or enter tracking IDs to pick up packages:
+                            </p>
+                            
+                            <div className="input-group">
+                                <input
+                                    type="text"
+                                    className="input-field"
+                                    placeholder="Scan or enter Tracking ID"
+                                    value={bulkScanTrackingId}
+                                    onChange={(e) => setBulkScanTrackingId(e.target.value.toUpperCase())}
+                                    onKeyPress={(e) => {
+                                        if (e.key === 'Enter' && bulkScanTrackingId.trim()) {
+                                            handleBulkScanPickup();
+                                        }
+                                    }}
+                                    autoFocus
+                                />
+                                <button 
+                                    className="scan-button"
+                                    onClick={() => setShowBulkScanner(true)}
+                                >
+                                    📷 Scan
+                                </button>
+                            </div>
+
+                            {bulkScanError && (
+                                <div className="error-box">
+                                    {bulkScanError}
+                                </div>
+                            )}
+                            
+                            {bulkScanSuccess && (
+                                <div className="success-box">
+                                    {bulkScanSuccess}
+                                </div>
+                            )}
+                            
+                            <div className="bulk-scan-info">
+                                <p>💡 Tip: Keep scanning packages continuously. Press ESC or click Cancel to finish.</p>
+                            </div>
+                        </div>
+                        <div className="modal-footer">
+                            <button className="cancel-button" onClick={() => setShowBulkScanModal(false)}>
+                                Done
+                            </button>
+                            <button className="confirm-button" onClick={handleBulkScanPickup}>
+                                ✓ Confirm Pickup
                             </button>
                         </div>
                     </div>
@@ -898,6 +1349,32 @@ const OutboundProcess = () => {
                     onScanSuccess={handleDispatchScan}
                     onClose={() => setShowDispatchScanner(false)}
                     scannerType="Bin ID"
+                />
+            )}
+            
+            {showAssignedDispatchScanner && (
+                <BarcodeScanner 
+                    onScanSuccess={(scannedValue) => {
+                        setScannedAssignedTrackingId(scannedValue.toUpperCase());
+                        setShowAssignedDispatchScanner(false);
+                    }}
+                    onClose={() => setShowAssignedDispatchScanner(false)}
+                    scannerType="Tracking ID"
+                />
+            )}
+            
+            {showBulkScanner && (
+                <BarcodeScanner 
+                    onScanSuccess={(scannedValue) => {
+                        setBulkScanTrackingId(scannedValue.toUpperCase());
+                        setShowBulkScanner(false);
+                        // Auto-trigger pickup after scan
+                        setTimeout(() => {
+                            handleBulkScanPickup();
+                        }, 100);
+                    }}
+                    onClose={() => setShowBulkScanner(false)}
+                    scannerType="Tracking ID"
                 />
             )}
         </div>

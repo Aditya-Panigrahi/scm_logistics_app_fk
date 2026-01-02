@@ -38,12 +38,14 @@ Bulk shipment registration for high-volume operations:
 
 ### 🚚 Outbound Process
 Efficient package retrieval and dispatch:
-- **Package location search** - quickly find any package
-- **Bin audit capability** - verify bin contents
-- **Pickup verification workflow** - scan to confirm
-- **Automatic bin release** when empty
-- **File-based picklist processing** for batch operations
-- **Role-based access**: Operators limited to bin pickup only
+- **Dual-mode operation**: Pickup by Bin or Pickup by File
+- **Bin-based pickup**: Scan bin, view packages, bulk scanning support
+- **File-based picklist**: Upload CSV/JSON, auto-assign to operators
+- **Operator assignment workflow**: Manual or auto round-robin distribution
+- **Status tracking**: Manifested/Direct → Picklist Created → Picked → Dispatched
+- **Bulk scanning mode**: Continuous package scanning for efficient pickup
+- **Pickup verification**: Scan tracking ID to confirm before dispatch
+- **Role-based access**: Operators see assigned shipments only, limited to bin pickup
 
 ### 📊 Inventory Dashboard
 Real-time warehouse analytics and monitoring:
@@ -152,20 +154,31 @@ scm_logistics_app_fk/
 │   │   └── index.html     # Main HTML template
 │   └── src/
 │       ├── App.js         # Root with protected routes
+│       ├── App.css        # Global responsive styles
+│       ├── index.css      # Base mobile-first styles
 │       ├── context/
 │       │   └── AuthContext.js  # Auth state management
 │       ├── components/
-│       │   ├── Login.js               # Login page
-│       │   ├── Register.js            # User registration
+│       │   ├── Login.js               # Login page with logo
+│       │   ├── Login.css              # Responsive login styles
+│       │   ├── Register.js            # User registration with logo
 │       │   ├── Home.js                # Landing with warehouse selector
+│       │   ├── Home.css               # Responsive home styles
 │       │   ├── PrivateRoute.js        # Route protection HOC
 │       │   ├── InboundProcess.js      # Receiving workflow
-│       │   ├── OutboundProcess.js     # Dispatch workflow
+│       │   ├── InboundProcess.css     # Responsive inbound styles
+│       │   ├── OutboundProcess.js     # Dispatch workflow (dual-mode)
+│       │   ├── OutboundProcess.css    # Responsive outbound styles
 │       │   ├── ManifestCreation.js    # Bulk upload
+│       │   ├── ManifestCreation.css   # Responsive manifest styles
 │       │   ├── InventoryDashboard.js  # Analytics
+│       │   ├── InventoryDashboard.css # Responsive dashboard styles
 │       │   ├── UserManagement.js      # User CRUD
+│       │   ├── UserManagement.css     # Responsive user mgmt styles
 │       │   ├── WarehouseManagement.js # Warehouse CRUD
-│       │   └── BarcodeScanner.js      # Camera scanner
+│       │   ├── WarehouseManagement.css # Responsive warehouse styles
+│       │   ├── BarcodeScanner.js      # Camera scanner
+│       │   └── BarcodeScanner.css     # Responsive scanner styles
 │       └── services/
 │           └── api.js     # Axios with JWT interceptors
 │
@@ -227,6 +240,7 @@ Tracks individual packages through the warehouse lifecycle.
 - `bin` (Foreign Key) - Associated bin (nullable)
 - `status` - Current state in workflow
 - `manifested` (Boolean) - Whether registered with delivery partner
+- `assigned_operator` (Foreign Key) - Operator assigned to pick this package (nullable)
 - `time_in` - When package entered warehouse
 - `time_out` - When package was picked up
 - `created_at`, `updated_at` - Timestamps
@@ -235,6 +249,15 @@ Tracks individual packages through the warehouse lifecycle.
 ```
 manifested → putaway → picklist-created → picked → dispatched
 ```
+
+**Workflow Details:**
+- **manifested**: Package registered with delivery partner via manifest upload
+- **putaway**: Package assigned to a bin during inbound process
+- **picklist-created**: Package added to operator's picklist (via file upload + assignment)
+- **picked**: Operator scanned and confirmed package pickup
+- **dispatched**: Package handed over for delivery
+
+**Important:** Status only changes to `picklist-created` when packages are assigned to an operator, not immediately upon file upload.
 
 ### AuditLog (Activity Tracking)
 Maintains complete history of all package operations.
@@ -306,9 +329,14 @@ POST /api/inbound/scan_bin/
 | Method | Endpoint | Purpose | Request Body |
 |--------|----------|---------|--------------|
 | POST | `/api/outbound/get_bin_packages/` | List packages in bin | `{bin_id: string}` |
-| POST | `/api/outbound/pickup_package/` | Mark package as picked | `{tracking_id: string, bin_id: string}` |
-| POST | `/api/outbound/dispatch_packages/` | Batch dispatch | `{tracking_ids: array}` |
-| POST | `/api/outbound/process_picklist_file/` | Process CSV/JSON file | `{tracking_ids: array}` |
+| POST | `/api/outbound/pickup_package/` | Mark package as picked | `{tracking_id: string, expected_tracking_id: string}` |
+| POST | `/api/outbound/dispatch_packages/` | Batch dispatch from bin | `{bin_id: string, expected_bin_id: string}` |
+| POST | `/api/outbound/process_picklist_file/` | Process CSV/JSON file | File with tracking IDs |
+| POST | `/api/outbound/assign_to_operator/` | Assign packages to operator | `{tracking_ids: array, operator_id: number}` |
+| POST | `/api/outbound/auto_assign_to_operators/` | Auto-assign via round-robin | `{tracking_ids: array}` |
+| POST | `/api/outbound/dispatch_assigned_package/` | Dispatch assigned package | `{tracking_id: string, expected_tracking_id: string}` |
+| GET | `/api/outbound/my_assigned_shipments/` | Get operator's assignments | - |
+| GET | `/api/outbound/operators/` | List warehouse operators | - |
 | GET | `/api/shipments/` | List shipments (filtered by warehouse) | `?warehouse_id={id}` (superadmin only) |
 
 **Example:**
@@ -532,11 +560,23 @@ api.interceptors.response.use(
 - **Refresh on success**: Management pages automatically reload data after CRUD operations
 
 ### Responsive Design
-- **Desktop optimized**: Full feature set on large screens with card-based layouts
-- **Tablet support**: Touch-friendly interface with larger click targets
-- **Mobile capable**: Basic operations work on phones
-- **Centered branding**: Ekart logo always centered in header
-- **Consistent styling**: Blue theme (#2874f0) throughout application
+- **Fully responsive UI** optimized for all screen sizes and orientations
+- **Mobile-first approach**: Works seamlessly on phones, tablets, and desktops
+- **Breakpoints**: Optimized for small mobile (480px), mobile (768px), tablet (1024px)
+- **Touch-friendly**: 44px minimum touch targets for mobile interactions
+- **Landscape mode support**: Horizontal orientation optimizations
+- **iOS zoom prevention**: 16px minimum font sizes prevent unwanted zooming
+- **Cross-browser compatible**: Tested on Chrome, Firefox, Safari, Edge
+- **Flexible layouts**: Grid and flexbox responsive containers
+- **Media query optimization**: Component-specific responsive styling
+
+### Branding & User Experience
+- **Ekart logo integration**: White Ekart logo with blue background on all pages
+- **Consistent brand colors**: Blue theme (#2874f0) throughout application
+- **Centered layout**: Logo and warehouse selector centered in header
+- **Professional authentication pages**: Logo displayed on login and registration
+- **Clean UI**: Card-based layouts with clear visual hierarchy
+- **Accessibility**: Proper contrast ratios and semantic HTML
 
 ## Development
 
@@ -728,13 +768,34 @@ python manage.py seed_data
 5. Click "Assign"
 6. Package is now in the bin
 
-### Picking Package for Dispatch
+### Picking Package for Dispatch (Bin Mode)
 1. Navigate to Outbound Process
-2. Switch to "Pickup by Bin" tab
-3. Enter bin ID
-4. View packages in bin
-5. Enter tracking ID to pick
-6. Click "Pickup" - bin is auto-released when empty
+2. Stay on "Pickup by Bin" tab (default)
+3. Enter bin ID or use "Scan" button
+4. Click "Load Shipments" to view packages in bin
+5. Click "Start Scanning" for bulk mode
+6. Scan each package's tracking ID
+7. Click "Dispatch" when all packages picked
+8. Scan bin ID to confirm dispatch
+
+### Creating Picklist and Assigning to Operator (File Mode)
+1. Navigate to Outbound Process (admin/warehouse admin only)
+2. Switch to "Pickup by File" tab
+3. Click "Choose File" and upload CSV/JSON with tracking IDs
+4. Review loaded packages (status shows Manifested or Direct)
+5. Click "Assign to Operator"
+6. Select operator from list or choose "Auto Assign"
+7. Click "Confirm Assignment"
+8. Status changes to "Picklist Created" after assignment
+9. Operator can now see packages in "My Assigned Shipments"
+
+### Dispatching Assigned Packages (Operator)
+1. Login as operator
+2. View "My Assigned Shipments" section on Outbound Process page
+3. Find package to dispatch in the list
+4. Click "Dispatch" button
+5. Scan or enter tracking ID to confirm
+6. Package marked as dispatched
 
 ## Troubleshooting
 
@@ -762,6 +823,24 @@ python manage.py seed_data
 - Verify user role has required permissions
 - Check permission classes in backend views
 - Ensure JWT token is valid (check browser localStorage)
+
+## Recent Updates (January 2026)
+
+### Version 2.0 - Responsive Design & Enhanced Workflows
+- ✅ **Fully Responsive UI**: All 9 components optimized for mobile, tablet, and desktop
+- ✅ **Branding Enhancement**: Ekart logo integrated on login and registration pages
+- ✅ **Outbound Process Improvements**: 
+  - Fixed status workflow (status only changes to 'picklist-created' on operator assignment)
+  - Status display now shows actual database values (Manifested/Direct)
+  - Added operator assignment modal with auto-assign option
+  - Operators see dedicated "My Assigned Shipments" section
+- ✅ **Mobile Optimization**: 
+  - 44px minimum touch targets
+  - iOS zoom prevention (16px minimum fonts)
+  - Landscape mode optimizations
+  - Touch-friendly buttons and controls
+- ✅ **Cross-browser Testing**: Verified on Chrome, Firefox, Safari, Edge
+- ✅ **Code Quality**: Removed unused variables, cleaned up codebase
 
 ## License
 

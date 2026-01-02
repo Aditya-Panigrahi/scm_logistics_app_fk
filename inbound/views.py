@@ -732,22 +732,20 @@ class OutboundProcessViewSet(viewsets.ViewSet):
                     
                     # Only process if status is putaway
                     if shipment.status == 'putaway':
-                        # Update status to picklist-created
-                        shipment.status = 'picklist-created'
-                        shipment.save()
-                        
-                        # Create audit log
-                        AuditLog.objects.create(
-                            action='updated',
-                            shipment=shipment,
-                            user=request.user if request.user.is_authenticated else None,
-                            details=f'Package {tracking_id} added to picklist'
-                        )
+                        # DO NOT update status here - only when assigned to operator
+                        # shipment.status = 'picklist-created' - REMOVED
+                        # shipment.save() - REMOVED
                         
                         processed_packages.append({
                             'tracking_id': shipment.tracking_id,
                             'bin_id': shipment.bin.bin_id if shipment.bin else None,
-                            'status': shipment.status
+                            'status': shipment.status,
+                            'manifested': shipment.manifested,
+                            'assigned_operator': {
+                                'id': shipment.assigned_operator.id,
+                                'username': shipment.assigned_operator.username,
+                                'name': f"{shipment.assigned_operator.first_name} {shipment.assigned_operator.last_name}".strip()
+                            } if shipment.assigned_operator else None
                         })
                     else:
                         not_found.append(f'{tracking_id} (status: {shipment.status})')
@@ -865,11 +863,12 @@ class OutboundProcessViewSet(viewsets.ViewSet):
     
     @action(detail=False, methods=['post'])
     def assign_to_operator(self, request):
-        """Assign shipments to a specific operator"""
+        """Assign shipments to a specific operator or auto-assign using round-robin"""
         serializer = AssignOperatorSerializer(data=request.data)
         if serializer.is_valid():
             tracking_ids = serializer.validated_data['tracking_ids']
-            operator_id = serializer.validated_data['operator_id']
+            operator_id = serializer.validated_data.get('operator_id')
+            auto_assign = request.data.get('auto_assign', False)
             
             # Get warehouse from query param or user's warehouse
             warehouse_id = request.query_params.get('warehouse_id')
@@ -884,8 +883,74 @@ class OutboundProcessViewSet(viewsets.ViewSet):
             else:
                 warehouse = request.user.warehouse
             
-            # Validate operator exists and belongs to the warehouse
             from accounts.models import CustomUser
+            
+            # Auto-assign mode: use round-robin
+            if auto_assign or operator_id == 'auto':
+                # Get all active operators in the warehouse
+                operators = list(CustomUser.objects.filter(
+                    warehouse=warehouse, 
+                    role='OPERATOR',
+                    is_active=True
+                ).order_by('id'))
+                
+                if not operators:
+                    return Response({
+                        'success': False,
+                        'error': 'No active operators available in this warehouse'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                
+                # Round-robin assignment
+                assigned_count = 0
+                failed_assignments = []
+                assignments_by_operator = {}
+                
+                for idx, tracking_id in enumerate(tracking_ids):
+                    try:
+                        operator = operators[idx % len(operators)]
+                        shipment = Shipment.objects.get(tracking_id=tracking_id, warehouse=warehouse)
+                        shipment.assigned_operator = operator
+                        shipment.status = 'picklist-created'
+                        shipment.save()
+                        assigned_count += 1
+                        
+                        # Track assignments per operator
+                        if operator.username not in assignments_by_operator:
+                            assignments_by_operator[operator.username] = 0
+                        assignments_by_operator[operator.username] += 1
+                        
+                        # Create audit log
+                        AuditLog.objects.create(
+                            action='assigned',
+                            shipment=shipment,
+                            warehouse=warehouse,
+                            user=request.user,
+                            details=f'Shipment {tracking_id} auto-assigned to operator {operator.username}'
+                        )
+                    except Shipment.DoesNotExist:
+                        failed_assignments.append({
+                            'tracking_id': tracking_id,
+                            'reason': 'Shipment not found'
+                        })
+                
+                return Response({
+                    'success': True,
+                    'assigned_count': assigned_count,
+                    'failed_count': len(failed_assignments),
+                    'failed_assignments': failed_assignments,
+                    'auto_assigned': True,
+                    'assignments_summary': assignments_by_operator,
+                    'message': f'Auto-assigned {assigned_count} shipments across {len(operators)} operators'
+                }, status=status.HTTP_200_OK)
+            
+            # Manual assignment to specific operator
+            if not operator_id:
+                return Response({
+                    'success': False,
+                    'error': 'operator_id is required for manual assignment'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Validate operator exists and belongs to the warehouse
             try:
                 operator = CustomUser.objects.get(id=operator_id, warehouse=warehouse, role='OPERATOR')
             except CustomUser.DoesNotExist:
@@ -936,3 +1001,127 @@ class OutboundProcessViewSet(viewsets.ViewSet):
             'success': False,
             'errors': serializer.errors
         }, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=['get'])
+    def get_assigned_shipments(self, request):
+        """Get all shipments assigned to the current operator"""
+        # Get warehouse from query param or user's warehouse
+        warehouse_id = request.query_params.get('warehouse_id')
+        if warehouse_id:
+            try:
+                warehouse = Warehouse.objects.get(warehouse_id=warehouse_id)
+            except Warehouse.DoesNotExist:
+                return Response({
+                    'success': False,
+                    'error': 'Warehouse not found'
+                }, status=status.HTTP_404_NOT_FOUND)
+        else:
+            warehouse = request.user.warehouse
+        
+        # Get shipments assigned to current operator that are not yet dispatched
+        shipments = Shipment.objects.filter(
+            assigned_operator=request.user,
+            warehouse=warehouse,
+            status__in=['putaway', 'picked', 'picklist-created']
+        ).select_related('bin').order_by('assigned_operator', 'bin__bin_id')
+        
+        assigned_shipments = [{
+            'tracking_id': s.tracking_id,
+            'bin_id': s.bin.bin_id if s.bin else None,
+            'bin_location': s.bin.location if s.bin else None,
+            'status': s.status,
+            'manifested': s.manifested,
+            'time_in': s.time_in
+        } for s in shipments]
+        
+        return Response({
+            'success': True,
+            'shipments': assigned_shipments,
+            'count': len(assigned_shipments)
+        }, status=status.HTTP_200_OK)
+    
+    @action(detail=False, methods=['post'])
+    def dispatch_assigned_shipment(self, request):
+        """Dispatch a shipment assigned to the current operator after tracking ID validation"""
+        tracking_id = request.data.get('tracking_id')
+        scanned_tracking_id = request.data.get('scanned_tracking_id')
+        
+        if not tracking_id or not scanned_tracking_id:
+            return Response({
+                'success': False,
+                'error': 'Both tracking_id and scanned_tracking_id are required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Verify tracking IDs match
+        if tracking_id.strip().upper() != scanned_tracking_id.strip().upper():
+            return Response({
+                'success': False,
+                'error': 'Tracking ID mismatch. Please scan the correct shipment.',
+                'mismatch': True
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            shipment = Shipment.objects.select_related('bin', 'assigned_operator').get(
+                tracking_id=tracking_id.strip().upper()
+            )
+            
+            # Verify shipment is assigned to current operator
+            if shipment.assigned_operator != request.user:
+                return Response({
+                    'success': False,
+                    'error': 'This shipment is not assigned to you'
+                }, status=status.HTTP_403_FORBIDDEN)
+            
+            # Update shipment status
+            old_status = shipment.status
+            shipment.status = 'dispatched'
+            shipment.save()
+            
+            # Track bin information for audit log
+            bin_info = None
+            if shipment.bin:
+                bin_obj = shipment.bin
+                # Count remaining shipments in the bin after this dispatch
+                remaining_count = Shipment.objects.filter(
+                    bin=bin_obj, 
+                    status__in=['putaway', 'picked', 'picklist-created']
+                ).exclude(tracking_id=tracking_id).count()
+                
+                bin_info = {
+                    'bin_id': bin_obj.bin_id,
+                    'remaining_count': remaining_count
+                }
+                
+                # Create audit log for bin update
+                AuditLog.objects.create(
+                    action='updated',
+                    shipment=shipment,
+                    warehouse=shipment.warehouse,
+                    user=request.user,
+                    details=f'Shipment dispatched from bin {bin_obj.bin_id}, {remaining_count} shipments remaining'
+                )
+            
+            # Create audit log for dispatch
+            AuditLog.objects.create(
+                action='dispatched',
+                shipment=shipment,
+                warehouse=shipment.warehouse,
+                user=request.user,
+                details=f'Shipment {tracking_id} dispatched by operator {request.user.username}'
+            )
+            
+            return Response({
+                'success': True,
+                'message': f'Shipment {tracking_id} dispatched successfully',
+                'shipment': {
+                    'tracking_id': shipment.tracking_id,
+                    'status': shipment.status,
+                    'old_status': old_status
+                }
+            }, status=status.HTTP_200_OK)
+            
+        except Shipment.DoesNotExist:
+            return Response({
+                'success': False,
+                'error': f'Shipment {tracking_id} not found'
+            }, status=status.HTTP_404_NOT_FOUND)

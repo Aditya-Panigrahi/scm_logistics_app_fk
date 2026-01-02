@@ -122,6 +122,15 @@ export const outboundAPI = {
             tracking_ids: trackingIds,
             operator_id: operatorId
         }),
+    
+    getAssignedShipments: () =>
+        api.get('/outbound/get_assigned_shipments/'),
+    
+    dispatchAssignedShipment: (trackingId, scannedTrackingId) =>
+        api.post('/outbound/dispatch_assigned_shipment/', {
+            tracking_id: trackingId,
+            scanned_tracking_id: scannedTrackingId
+        }),
 };
 
 export default api;

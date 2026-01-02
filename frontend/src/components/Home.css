@@ -568,35 +568,157 @@
     font-size: 18px;
 }
 
-/* Responsive Design */
-@media (max-width: 768px) {
+/* ========================================
+   RESPONSIVE DESIGN - MOBILE & TABLET
+   ======================================== */
+
+/* Tablet Styles (768px - 1024px) */
+@media (max-width: 1024px) {
+    .home-container {
+        padding: 30px 15px;
+    }
+
+    .apps-grid {
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 20px;
+    }
+
     .welcome-title {
-        font-size: 36px;
+        font-size: 42px;
+    }
+}
+
+/* Mobile Styles (max-width: 768px) */
+@media (max-width: 768px) {
+    .home-container {
+        padding: 20px 12px;
+    }
+
+    .home-header {
+        padding: 15px;
+    }
+
+    .logo-img {
+        height: 32px;
+    }
+
+    .user-info {
+        flex-direction: row;
+        gap: 8px;
+        align-items: center;
+    }
+
+    .user-name {
+        font-size: 0.9rem;
+    }
+
+    .user-role {
+        font-size: 0.8rem;
+    }
+
+    .logout-btn {
+        padding: 8px 12px;
+        font-size: 0.85rem;
+        min-height: 36px;
+    }
+
+    .welcome-title {
+        font-size: 2rem;
+        line-height: 1.2;
     }
 
     .welcome-subtitle {
-        font-size: 20px;
+        font-size: 1.2rem;
     }
 
     .welcome-description {
-        font-size: 16px;
+        font-size: 1rem;
+        padding: 0 10px;
     }
 
     .section-title {
-        font-size: 26px;
+        font-size: 1.5rem;
+        margin-bottom: 20px;
     }
 
     .apps-grid {
         grid-template-columns: 1fr;
         max-width: 400px;
+        gap: 15px;
     }
 
-    .christmas-icon {
-        font-size: 60px;
+    .app-card {
+        padding: 25px 20px;
     }
 
+    .christmas-icon,
     .app-icon {
-        font-size: 52px;
+        font-size: 50px;
+    }
+
+    .app-card h3 {
+        font-size: 1.3rem;
+    }
+
+    .app-card p {
+        font-size: 0.95rem;
+    }
+
+    .home-footer {
+        padding: 30px 15px;
+        font-size: 1rem;
+    }
+}
+
+/* Small Mobile Styles (max-width: 480px) */
+@media (max-width: 480px) {
+    .home-container {
+        padding: 15px 10px;
+    }
+
+    .home-header {
+        padding: 12px;
+    }
+
+    .logo-img {
+        height: 28px;
+    }
+
+    .welcome-title {
+        font-size: 1.8rem;
+    }
+
+    .welcome-subtitle {
+        font-size: 1.1rem;
+    }
+
+    .section-title {
+        font-size: 1.3rem;
+    }
+
+    .app-card {
+        padding: 20px 15px;
+    }
+
+    .christmas-icon,
+    .app-icon {
+        font-size: 45px;
+    }
+}
+
+/* Touch Device Optimization */
+@media (hover: none) and (pointer: coarse) {
+    .app-card {
+        min-height: 220px;
+    }
+
+    .logout-btn {
+        min-height: 44px;
+        min-width: 44px;
+    }
+
+    .app-card:active {
+        transform: translateY(-4px) scale(0.98);
     }
 }
 

@@ -550,3 +550,348 @@
     background: #ccc;
     cursor: not-allowed;
 }
+/* ========================================
+   RESPONSIVE DESIGN - MOBILE & TABLET
+   ======================================== */
+
+/* Tablet Styles (768px - 1024px) */
+@media (max-width: 1024px) {
+    .main-content {
+        padding: 30px 15px;
+    }
+
+    .users-table {
+        font-size: 0.9rem;
+    }
+
+    .users-table th,
+    .users-table td {
+        padding: 12px 10px;
+    }
+
+    .modal-content {
+        width: 85%;
+        max-width: 600px;
+        padding: 25px;
+    }
+}
+
+/* Mobile Styles (max-width: 768px) */
+@media (max-width: 768px) {
+    /* Header Mobile Optimization */
+    .header {
+        padding: 10px 12px;
+    }
+
+    .header-content {
+        flex-direction: column;
+        gap: 12px;
+        min-height: auto;
+    }
+
+    .logo-section {
+        position: static;
+        transform: none;
+        order: 1;
+        margin-bottom: 8px;
+    }
+
+    .logo-img {
+        height: 32px;
+    }
+
+    .user-section {
+        position: static;
+        order: 2;
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .user-info {
+        flex-direction: row;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .user-name {
+        font-size: 0.9rem;
+    }
+
+    .user-role {
+        font-size: 0.8rem;
+    }
+
+    .back-button,
+    .logout-button {
+        padding: 8px 12px;
+        font-size: 0.85rem;
+        height: auto;
+        min-height: 36px;
+    }
+
+    /* Main Content */
+    .main-content {
+        padding: 20px 12px;
+    }
+
+    .content-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 15px;
+    }
+
+    .content-header h1 {
+        font-size: 1.5rem;
+        text-align: center;
+    }
+
+    .create-button {
+        width: 100%;
+        padding: 12px 20px;
+        font-size: 1rem;
+        min-height: 44px; /* iOS touch target */
+    }
+
+    /* Table - Horizontal Scroll */
+    .users-table-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .users-table {
+        font-size: 0.85rem;
+        min-width: 700px; /* Enable horizontal scroll */
+    }
+
+    .users-table th,
+    .users-table td {
+        padding: 10px 8px;
+        white-space: nowrap;
+    }
+
+    /* Action Buttons */
+    .action-button,
+    .delete-button {
+        padding: 6px 10px;
+        font-size: 0.8rem;
+        min-height: 36px;
+    }
+
+    /* Modal - Full Width */
+    .modal {
+        padding: 10px;
+    }
+
+    .modal-content {
+        width: 100%;
+        max-width: 100%;
+        margin: 0;
+        padding: 15px;
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+
+    .modal-header {
+        padding: 12px 15px;
+        margin: -15px -15px 15px -15px;
+    }
+
+    .modal-title {
+        font-size: 1.2rem;
+    }
+
+    .close-modal {
+        width: 32px;
+        height: 32px;
+        font-size: 1.5rem;
+    }
+
+    /* Forms */
+    .form-row {
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .form-group {
+        margin-bottom: 15px;
+        width: 100% !important;
+    }
+
+    .form-group label {
+        font-size: 0.9rem;
+        margin-bottom: 6px;
+    }
+
+    .form-group input,
+    .form-group select {
+        font-size: 1rem; /* Prevent zoom on iOS */
+        padding: 10px;
+    }
+
+    /* Checkbox Labels */
+    .checkbox-label {
+        font-size: 0.9rem;
+        padding: 10px;
+        min-height: 44px;
+    }
+
+    /* Modal Actions - Stack Buttons */
+    .modal-actions {
+        flex-direction: column-reverse;
+        gap: 10px;
+    }
+
+    .modal-actions button {
+        width: 100%;
+        min-height: 44px;
+        padding: 12px 20px;
+        font-size: 1rem;
+    }
+
+    /* Alert Messages */
+    .alert {
+        padding: 10px 15px;
+        font-size: 0.9rem;
+        margin-bottom: 15px;
+    }
+}
+
+/* Small Mobile Styles (max-width: 480px) */
+@media (max-width: 480px) {
+    .header {
+        padding: 8px 10px;
+    }
+
+    .logo-img {
+        height: 28px;
+    }
+
+    .main-content {
+        padding: 15px 10px;
+    }
+
+    .content-header h1 {
+        font-size: 1.3rem;
+    }
+
+    .users-table {
+        font-size: 0.8rem;
+        min-width: 600px;
+    }
+
+    .users-table th,
+    .users-table td {
+        padding: 8px 6px;
+    }
+
+    .modal-content {
+        padding: 12px;
+    }
+
+    .modal-title {
+        font-size: 1.1rem;
+    }
+
+    .form-group label {
+        font-size: 0.85rem;
+    }
+
+    .action-button,
+    .delete-button {
+        padding: 5px 8px;
+        font-size: 0.75rem;
+    }
+}
+
+/* Landscape Orientation */
+@media (max-height: 600px) and (orientation: landscape) {
+    .modal-content {
+        max-height: 85vh;
+        overflow-y: auto;
+    }
+
+    .header-content {
+        flex-direction: row;
+    }
+
+    .logo-section {
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+    }
+
+    .user-section {
+        position: absolute;
+        right: 0;
+    }
+}
+
+/* Touch Device Optimization */
+@media (hover: none) and (pointer: coarse) {
+    button,
+    .create-button,
+    .back-button,
+    .logout-button,
+    .cancel-button,
+    .submit-button,
+    .action-button,
+    .delete-button {
+        min-height: 44px;
+        min-width: 44px;
+    }
+
+    .users-table tbody tr:active {
+        background: #f5f5f5;
+    }
+}
+
+/* Card Layout for Very Small Screens */
+@media (max-width: 600px) {
+    .users-table-container {
+        background: transparent;
+        box-shadow: none;
+    }
+
+    .users-table thead {
+        display: none;
+    }
+
+    .users-table,
+    .users-table tbody,
+    .users-table tr,
+    .users-table td {
+        display: block;
+        width: 100%;
+    }
+
+    .users-table tr {
+        background: white;
+        margin-bottom: 12px;
+        border-radius: 8px;
+        padding: 12px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        border: none;
+    }
+
+    .users-table td {
+        text-align: left !important;
+        padding: 8px 0;
+        border: none;
+        position: relative;
+        padding-left: 50%;
+    }
+
+    .users-table td::before {
+        content: attr(data-label);
+        position: absolute;
+        left: 0;
+        width: 45%;
+        font-weight: 600;
+        color: #666;
+    }
+
+    .users-table td:last-child {
+        padding-left: 0;
+        margin-top: 10px;
+    }
+}

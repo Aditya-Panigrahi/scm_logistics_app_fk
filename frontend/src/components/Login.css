@@ -21,16 +21,28 @@
   margin-bottom: 30px;
 }
 
-.login-header h1 {
-  margin: 0;
-  font-size: 2em;
-  color: #333;
+.login-header .logo-img {
+  height: 60px;
+  width: auto;
+  margin: 0 auto 20px auto;
+  display: block;
+  background: #2874f0;
+  padding: 10px 20px;
+  border-radius: 8px;
 }
 
-.login-header p {
-  margin: 5px 0 0 0;
-  color: #666;
-  font-size: 0.9em;
+.login-header .login-title {
+  margin: 0;
+  font-size: 1.5em;
+  color: #333;
+  font-weight: 600;
+}
+
+.login-header .login-subtitle {
+  margin: 8px 0 0 0;
+  color: #2874f0;
+  font-size: 1.1em;
+  font-weight: 500;
 }
 
 .login-form {
@@ -132,12 +144,147 @@
   gap: 15px;
 }
 
+/* ========================================
+   RESPONSIVE DESIGN - MOBILE & TABLET
+   ======================================== */
+
+/* Tablet Styles (768px - 1024px) */
+@media (max-width: 1024px) {
+  .login-container {
+    padding: 30px 20px;
+  }
+
+  .login-box {
+    max-width: 500px;
+    padding: 40px 30px;
+  }
+}
+
+/* Mobile Styles (max-width: 768px) */
 @media (max-width: 768px) {
+  .login-container {
+    padding: 20px 15px;
+  }
+
   .login-box {
     padding: 30px 20px;
+    max-width: 100%;
+  }
+
+  .login-header .logo-img {
+    height: 50px;
+  }
+
+  .login-header .login-title {
+    font-size: 1.2rem;
+  }
+
+  .login-header .login-subtitle {
+    font-size: 1rem;
   }
 
   .form-row {
     grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .form-group {
+    margin-bottom: 15px;
+  }
+
+  .form-group label {
+    font-size: 0.9rem;
+    margin-bottom: 6px;
+  }
+
+  .form-group input,
+  .form-group select {
+    font-size: 1rem; /* Prevent iOS zoom */
+    padding: 12px;
+    min-height: 44px;
+  }
+
+  .submit-button {
+    width: 100%;
+    padding: 12px;
+    font-size: 1rem;
+    min-height: 48px;
+  }
+
+  .login-footer {
+    margin-top: 20px;
+    font-size: 0.9rem;
+  }
+
+  .alert {
+    padding: 10px 12px;
+    font-size: 0.9rem;
+  }
+}
+
+/* Small Mobile Styles (max-width: 480px) */
+@media (max-width: 480px) {
+  .login-container {
+    padding: 15px 10px;
+  }
+
+  .login-box {
+    padding: 25px 15px;
+  }
+
+  .login-header .logo-img {
+    height: 45px;
+    margin-bottom: 15px;
+  }
+
+  .login-header .login-title {
+    font-size: 1.1rem;
+  }
+
+  .login-header .login-subtitle {
+    font-size: 0.9rem;
+  }
+
+  .form-group label {
+    font-size: 0.85rem;
+  }
+}
+
+/* Landscape Orientation */
+@media (max-height: 600px) and (orientation: landscape) {
+  .login-container {
+    padding: 15px;
+  }
+
+  .login-box {
+    padding: 20px;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  .login-title {
+    margin-bottom: 15px;
+  }
+
+  .form-group {
+    margin-bottom: 10px;
+  }
+}
+
+/* Touch Device Optimization */
+@media (hover: none) and (pointer: coarse) {
+  .form-group input,
+  .form-group select,
+  .submit-button {
+    min-height: 44px;
+  }
+
+  .submit-button:active {
+    transform: scale(0.98);
+  }
+
+  .login-footer a {
+    padding: 5px;
+    margin: -5px;
   }
 }

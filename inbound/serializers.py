@@ -115,7 +115,8 @@ class AssignOperatorSerializer(serializers.Serializer):
         child=serializers.CharField(max_length=100),
         allow_empty=False
     )
-    operator_id = serializers.IntegerField()
+    operator_id = serializers.CharField(required=False, allow_null=True)
+    auto_assign = serializers.BooleanField(required=False, default=False)
     
     def validate_tracking_ids(self, value):
         if not value:

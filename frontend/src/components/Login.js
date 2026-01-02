@@ -42,8 +42,13 @@ function Login() {
     <div className="login-container">
       <div className="login-box">
         <div className="login-header">
-          <h1>📦 Ekart Logistics</h1>
-          <p>Warehouse Management System</p>
+          <img 
+            src="https://static-assets-web.flixcart.com/ekart-assets/assets/fonts/ekWhiteLogo.9be1302c8c55ee6342ddaa8e9a3e00aa.png" 
+            alt="Ekart Logistics" 
+            className="logo-img"
+          />
+          <h1 className="login-title">Warehouse Management System</h1>
+          <p className="login-subtitle">Ekart Logistics</p>
         </div>
 
         <form onSubmit={handleSubmit} className="login-form">

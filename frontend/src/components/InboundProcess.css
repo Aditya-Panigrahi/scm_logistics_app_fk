@@ -510,29 +510,232 @@ button[type="submit"]:disabled,
     box-shadow: 0 2px 8px rgba(40, 116, 240, 0.3);
 }
 
-/* Responsive Design */
-@media (max-width: 768px) {
-    .header-content {
-        flex-direction: column;
-        gap: 10px;
-        align-items: flex-start;
+/* ========================================
+   RESPONSIVE DESIGN - MOBILE & TABLET
+   ======================================== */
+
+/* Tablet Styles (768px - 1024px) */
+@media (max-width: 1024px) {
+    .content-wrapper {
+        padding: 20px 15px;
     }
 
-    .content-wrapper {
-        padding: 16px 12px;
+    .steps-container {
+        max-width: 100%;
     }
 
     .step {
-        padding: 16px;
+        padding: 20px;
+    }
+}
+
+/* Mobile Styles (max-width: 768px) */
+@media (max-width: 768px) {
+    .header {
+        padding: 10px 12px;
     }
 
+    .header-content {
+        flex-direction: column;
+        gap: 10px;
+        align-items: stretch;
+    }
+
+    .header-left {
+        order: 2;
+        justify-content: space-between;
+    }
+
+    .header-right {
+        order: 3;
+        justify-content: flex-end;
+    }
+
+    .logo-section {
+        order: 1;
+        margin-bottom: 5px;
+    }
+
+    .logo-img {
+        height: 32px;
+    }
+
+    .back-btn,
+    .dashboard-btn {
+        padding: 8px 12px;
+        font-size: 0.85rem;
+        min-height: 36px;
+    }
+
+    .content-wrapper {
+        padding: 15px 10px;
+    }
+
+    .page-title {
+        font-size: 1.4rem;
+        margin-bottom: 15px;
+    }
+
+    .steps-container {
+        max-width: 100%;
+    }
+
+    .step-indicator {
+        margin-bottom: 15px;
+    }
+
+    .step-number {
+        width: 35px;
+        height: 35px;
+        font-size: 1.1rem;
+    }
+
+    .step-title {
+        font-size: 1rem;
+    }
+
+    .step {
+        padding: 15px;
+    }
+
+    .step h3 {
+        font-size: 1.1rem;
+        margin-bottom: 12px;
+    }
+
+    .step p {
+        font-size: 0.9rem;
+        margin-bottom: 15px;
+    }
+
+    /* Input Wrappers */
     .input-wrapper {
         flex-direction: column;
         align-items: stretch;
+        gap: 10px;
+    }
+
+    .input-wrapper input {
+        width: 100%;
+        font-size: 1rem; /* Prevent iOS zoom */
+        padding: 10px;
     }
 
     .camera-btn {
         width: 100%;
         justify-content: center;
+        min-height: 44px;
+    }
+
+    /* Buttons */
+    .action-buttons {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    button,
+    .next-btn,
+    .prev-btn,
+    .submit-btn,
+    .reset-btn {
+        width: 100%;
+        min-height: 44px;
+        font-size: 1rem;
+        padding: 12px 20px;
+    }
+
+    /* Shipment Details */
+    .shipment-details {
+        padding: 12px;
+    }
+
+    .detail-row {
+        flex-direction: column;
+        gap: 5px;
+        padding: 8px 0;
+    }
+
+    .detail-label {
+        font-size: 0.85rem;
+    }
+
+    .detail-value {
+        font-size: 0.95rem;
+    }
+
+    /* Success Message */
+    .success-message {
+        padding: 15px;
+    }
+
+    .success-message h3 {
+        font-size: 1.2rem;
+    }
+
+    .success-icon {
+        font-size: 3rem;
+    }
+}
+
+/* Small Mobile Styles (max-width: 480px) */
+@media (max-width: 480px) {
+    .header {
+        padding: 8px 10px;
+    }
+
+    .logo-img {
+        height: 28px;
+    }
+
+    .page-title {
+        font-size: 1.2rem;
+    }
+
+    .content-wrapper {
+        padding: 12px 8px;
+    }
+
+    .step {
+        padding: 12px;
+    }
+
+    .step h3 {
+        font-size: 1rem;
+    }
+
+    .step-number {
+        width: 32px;
+        height: 32px;
+        font-size: 1rem;
+    }
+
+    .step-title {
+        font-size: 0.9rem;
+    }
+}
+
+/* Landscape Orientation */
+@media (max-height: 600px) and (orientation: landscape) {
+    .content-wrapper {
+        padding: 15px;
+    }
+
+    .step {
+        padding: 15px;
+    }
+}
+
+/* Touch Device Optimization */
+@media (hover: none) and (pointer: coarse) {
+    button,
+    .camera-btn,
+    .back-btn,
+    .dashboard-btn {
+        min-height: 44px;
+        min-width: 44px;
+    }
+
+    .step:active {
+        transform: scale(0.99);
     }
 }

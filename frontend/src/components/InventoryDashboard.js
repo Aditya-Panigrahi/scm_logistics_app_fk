@@ -115,7 +115,6 @@ const InventoryDashboard = () => {
     // Filter shipments based on current filters
     const getFilteredShipments = () => {
         const shipmentsArray = Array.isArray(shipments) ? shipments : [];
-        const binsArray = Array.isArray(bins) ? bins : [];
         
         return shipmentsArray.filter(shipment => {
             const matchesStatus = statusFilter === 'all' || shipment.status === statusFilter;
@@ -424,13 +423,12 @@ const InventoryDashboard = () => {
                                         </thead>
                                         <tbody>
                                             {filteredShipments.map(shipment => {
-                                                const bin = bins.find(b => b.id === shipment.bin);
                                                 return (
-                                                    <tr key={shipment.id}>
+                                                    <tr key={shipment.tracking_id}>
                                                         <td className="tracking-id-cell">
                                                             {shipment.tracking_id}
                                                         </td>
-                                                        <td>{bin ? bin.bin_id : '-'}</td>
+                                                        <td>{shipment.bin_id || '-'}</td>
                                                         <td>
                                                             <span className={`status-badge ${shipment.status}`}>
                                                                 {shipment.status}

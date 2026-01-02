@@ -446,3 +446,270 @@
     background: #ccc;
     cursor: not-allowed;
 }
+/* ========================================
+   RESPONSIVE DESIGN - MOBILE & TABLET
+   ======================================== */
+
+/* Tablet Styles (768px - 1024px) */
+@media (max-width: 1024px) {
+    .main-content {
+        padding: 30px 15px;
+    }
+
+    .warehouses-grid {
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 20px;
+    }
+
+    .modal-content {
+        width: 85%;
+        max-width: 600px;
+        padding: 25px;
+    }
+}
+
+/* Mobile Styles (max-width: 768px) */
+@media (max-width: 768px) {
+    /* Header Mobile Optimization */
+    .header {
+        padding: 10px 12px;
+    }
+
+    .header-content {
+        flex-direction: column;
+        gap: 12px;
+        min-height: auto;
+    }
+
+    .logo-section {
+        position: static;
+        transform: none;
+        order: 1;
+        margin-bottom: 8px;
+    }
+
+    .logo-img {
+        height: 32px;
+    }
+
+    .user-section {
+        position: static;
+        order: 2;
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .user-info {
+        flex-direction: row;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .user-name {
+        font-size: 0.9rem;
+    }
+
+    .user-role {
+        font-size: 0.8rem;
+    }
+
+    .back-button,
+    .logout-button {
+        padding: 8px 12px;
+        font-size: 0.85rem;
+        height: auto;
+        min-height: 36px;
+    }
+
+    /* Main Content */
+    .main-content {
+        padding: 20px 12px;
+    }
+
+    .content-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 15px;
+    }
+
+    .content-header h1 {
+        font-size: 1.5rem;
+        text-align: center;
+    }
+
+    .create-button {
+        width: 100%;
+        padding: 12px 20px;
+        font-size: 1rem;
+        min-height: 44px; /* iOS touch target */
+    }
+
+    /* Warehouses Grid - Single Column */
+    .warehouses-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+
+    .warehouse-card {
+        padding: 18px;
+    }
+
+    .warehouse-header {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .warehouse-actions {
+        width: 100%;
+        justify-content: stretch;
+    }
+
+    .warehouse-actions button {
+        flex: 1;
+        min-height: 40px;
+    }
+
+    /* Modal - Full Width */
+    .modal {
+        padding: 10px;
+    }
+
+    .modal-content {
+        width: 100%;
+        max-width: 100%;
+        margin: 0;
+        padding: 15px;
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+
+    .modal-header {
+        padding: 12px 15px;
+        margin: -15px -15px 15px -15px;
+    }
+
+    .modal-title {
+        font-size: 1.2rem;
+    }
+
+    .close-modal {
+        width: 32px;
+        height: 32px;
+        font-size: 1.5rem;
+    }
+
+    /* Forms */
+    .form-group {
+        margin-bottom: 15px;
+    }
+
+    .form-group label {
+        font-size: 0.9rem;
+        margin-bottom: 6px;
+    }
+
+    .form-group input,
+    .form-group textarea {
+        font-size: 1rem; /* Prevent zoom on iOS */
+        padding: 10px;
+    }
+
+    .form-group textarea {
+        min-height: 80px;
+    }
+
+    /* Modal Actions - Stack Buttons */
+    .modal-actions {
+        flex-direction: column-reverse;
+        gap: 10px;
+    }
+
+    .modal-actions button {
+        width: 100%;
+        min-height: 44px;
+        padding: 12px 20px;
+        font-size: 1rem;
+    }
+
+    /* Alert Messages */
+    .alert {
+        padding: 10px 15px;
+        font-size: 0.9rem;
+        margin-bottom: 15px;
+    }
+}
+
+/* Small Mobile Styles (max-width: 480px) */
+@media (max-width: 480px) {
+    .header {
+        padding: 8px 10px;
+    }
+
+    .logo-img {
+        height: 28px;
+    }
+
+    .main-content {
+        padding: 15px 10px;
+    }
+
+    .content-header h1 {
+        font-size: 1.3rem;
+    }
+
+    .warehouse-card {
+        padding: 15px;
+    }
+
+    .modal-content {
+        padding: 12px;
+    }
+
+    .modal-title {
+        font-size: 1.1rem;
+    }
+
+    .form-group label {
+        font-size: 0.85rem;
+    }
+}
+
+/* Landscape Orientation */
+@media (max-height: 600px) and (orientation: landscape) {
+    .modal-content {
+        max-height: 85vh;
+        overflow-y: auto;
+    }
+
+    .header-content {
+        flex-direction: row;
+    }
+
+    .logo-section {
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+    }
+
+    .user-section {
+        position: absolute;
+        right: 0;
+    }
+}
+
+/* Touch Device Optimization */
+@media (hover: none) and (pointer: coarse) {
+    button,
+    .create-button,
+    .back-button,
+    .logout-button,
+    .cancel-button,
+    .submit-button {
+        min-height: 44px;
+        min-width: 44px;
+    }
+
+    .warehouse-card:active {
+        transform: translateY(-2px);
+    }
+}
